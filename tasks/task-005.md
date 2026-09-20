@@ -1,5 +1,13 @@
 # Task 005 — 完整候选集分页截断修复
 
+## 状态
+
+**PASS**（独立验收通过）
+
+- Task 5 accepted baseline：`5ede01337f99fc4743fcb2b93896640e10c993e9`
+- 验收通过范围：完整候选集分页取全、词表维护页完整显示、后端分页契约不变、Task 1–4 回归通过、默认累积 E2E 库不再因 100 条截断超时。
+- 验收保留的冻结判断见 `PROGRESS.md`「已冻结判断」。
+
 ## 背景
 
 后端分页接口将 `page_size` 上限固定为 100，这是正常且不改变的设计。
@@ -118,8 +126,6 @@
 - schema 漂移检查，确认本 Task 未引入 migration / schema 变化
 - `git diff --check`
 
-输出施工报告前，按照 `AGENTS.md` 更新 `PROGRESS.md`，并将 Task 5 标记为：
+输出施工报告前，按照 `AGENTS.md` 更新 `PROGRESS.md`，并将 Task 5 标记为 `待独立验收`；施工 Agent 不得自行标记 `PASS`。
 
-`待独立验收`
-
-施工 Agent 不得自行标记 `PASS`。
+本 Task 已通过独立验收，标记为 `PASS`，accepted baseline 为 `5ede01337f99fc4743fcb2b93896640e10c993e9`。
