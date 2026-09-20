@@ -63,7 +63,8 @@ async def plan_material(session_id: UUID, payload: UsageCreate, session: DbSessi
 async def remove_planned_material(session_id: UUID, usage_id: UUID, session: DbSession) -> None:
     await _require_session(session, session_id)
     result = cast(CursorResult[Any], await session.execute(
-        delete(Usage).where(Usage.id == usage_id, Usage.session_id == session_id)
+        delete(Usage).where(Usage.id == usage_id, Usage.session_id == session_id,
+                            Usage.status == "计划")
     ))
     if result.rowcount == 0:
         raise HTTPException(status_code=404)

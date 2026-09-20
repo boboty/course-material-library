@@ -5,7 +5,7 @@
 - V1
 - Task 1: PASS
 - Task 2: PASS
-- Task 3: RC
+- Task 3: 待复验
 
 ## 已验收基线
 
@@ -19,9 +19,10 @@
 
 - Candidate commit: 07deac0
 - Working migration head: 0003_usages
-- 施工自验记录：make check 107 passed；make smoke PASS；make e2e 9 passed
+- RC 修复自验：make check PASS（后端 115 passed、前端 3 passed）；make smoke PASS；make e2e 9 passed
+- Migration head 仍为 0003_usages（单一 head）；alembic check：无 schema 漂移
 - GitHub CI：独立验收时未取得该 candidate 的 CI 结果
-- 独立验收结论：RC，accepted baseline 不变
+- 独立验收结论：此前为 RC；当前修复待独立复验，accepted baseline 不变
 
 ## 已冻结判断
 
@@ -55,7 +56,7 @@
 
 ## 当前尚未具备
 
-- Task 3 独立验收通过
+- Task 3 独立复验通过
 - 课后登记
 - 已用 / 未用状态转换
 - 好 / 差效果登记
@@ -70,28 +71,22 @@
 
 ## 当前任务
 
-- Task 3: RC
+- Task 3: 待复验
 - Task 文件：`tasks/task-003.md`
 - 目标：完成“已有场次 → 搜索素材 → 加入计划 → 持久化使用记录 → 场次详情读回 → 可撤销计划”的备课垂直切片
 - Candidate：`07deac0`
 
-## RC 待修项
+## RC 修复结果
 
 1. **撤销计划 API 未锁定“计划”状态**
-   - 当前 DELETE 仅按 `usage_id + session_id` 删除。
-   - 数据模型已经允许 `已用 / 未用`，因此该接口实际上也能删除未来的课后事实。
-   - 修复要求：DELETE 只能删除 `status='计划'` 的使用记录；对非计划记录不得删除。
-   - 增加独立测试：直接构造 / 修改为“已用”或“未用”的记录后调用 DELETE，确认记录仍存在且接口明确失败。
+   - DELETE 增加 `status='计划'` 条件；已用 / 未用记录返回 404 且保持存在，已有计划撤销行为保持通过。
 
 2. **数据库 CHECK 约束测试存在假绿，且缺少 reaction 空白验证**
-   - 当前非法 status / effect 测试同时使用不存在的 session/material UUID，因此即使对应 CHECK 被删除，也可能仅因 FK 失败而通过。
-   - 施工报告声称覆盖空白 reaction，但当前测试未实际验证 `reaction IS NULL OR length(btrim(reaction)) > 0`。
-   - 修复要求：先创建真实 session/material，再分别、单独触发非法 status、非法 effect、空白 reaction；FK 约束另行独立测试，使每个测试都能证明目标约束本身。
+   - CHECK 测试先创建真实场次与素材，分别触发非法 status、非法 effect 和空白 reaction，并核对失败约束名；场次与素材 FK 分别独立验证。
 
 ## 复验要求
 
 - 只修上述 RC，不扩大 Task 3 范围，不进入 Task 4。
-- 修复后更新本文件为 `Task 3: 待复验`。
-- 实际运行 `make check`、`make smoke`、`make e2e`。
-- 保持 0003 为单一 migration head，并确认 migration 无漂移。
-- 独立复验通过后才可将 Task 3 标记为 PASS 并更新 accepted baseline。
+- 下一步：独立复验上述两项 RC；通过后才可将 Task 3 标记为 PASS 并更新 accepted baseline。
+- 当前未新增 migration、schema 或冻结判断；Task 4 及后续范围仍未实现。
+- 已知风险：本轮自验不等于独立复验；candidate 的 GitHub CI 结果仍未取得。

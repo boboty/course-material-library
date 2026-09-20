@@ -178,6 +178,30 @@ def test_removing_once_then_again_is_not_found(client: TestClient) -> None:
     assert again.status_code == 404
 
 
+@pytest.mark.parametrize("status", ["已用", "未用"])
+def test_cannot_remove_post_class_usage(client: TestClient, status: str) -> None:
+    session = create_session_for(client)
+    material = create_material(client)
+    usage = plan(client, session["id"], material["id"])
+    asyncio.run(_set_usage_status(usage["id"], status))
+
+    response = client.delete(f"/api/v1/sessions/{session['id']}/usages/{usage['id']}")
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"
+    assert asyncio.run(_usage_states(usage["id"])) == (status, "未评")
+    assert list_usages(client, session["id"])[0]["status"] == status
+
+
+async def _set_usage_status(usage_id: str, status: str) -> None:
+    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("update usages set status = :status where id = :id"),
+                               {"status": status, "id": usage_id})
+    finally:
+        await engine.dispose()
+
+
 # 验收 9：草稿素材允许被计划（V1 快速录入素材全是草稿）
 def test_draft_material_can_be_planned(client: TestClient) -> None:
     session = create_session_for(client)
@@ -247,42 +271,52 @@ def test_usage_model_has_no_task4_columns() -> None:
     }
 
 
-# 数据库级约束：状态与效果合法值、同一场次同一素材唯一、外键真实存在
-def test_database_enforces_usage_constraints() -> None:
-    asyncio.run(_check_usage_constraints())
+# 数据库级约束分别使用真实外键验证，避免 FK 错误掩盖 CHECK 错误
+@pytest.mark.parametrize(("status", "effect", "reaction", "constraint"), [
+    ("已讲", "未评", None, "usages_status_valid"),
+    ("", "未评", None, "usages_status_valid"),
+    ("计划", "一般", None, "usages_effect_valid"),
+    ("计划", "", None, "usages_effect_valid"),
+    ("计划", "未评", "   ", "usages_reaction_nonblank"),
+])
+def test_database_enforces_usage_check_constraints(client: TestClient, status: str,
+                                                   effect: str, reaction: str | None,
+                                                   constraint: str) -> None:
+    session = create_session_for(client)
+    material = create_material(client)
+    asyncio.run(_assert_usage_constraint(session["id"], material["id"],
+                                         status, effect, reaction, constraint))
 
 
-async def _check_usage_constraints() -> None:
+async def _assert_usage_constraint(session_id: str, material_id: str, status: str,
+                                   effect: str, reaction: str | None,
+                                   constraint: str) -> None:
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
-    insert = ("insert into usages (id, session_id, material_id, status, effect) "
-              "values (:id, :session, :material, :status, :effect)")
     try:
-        for status, effect in (("已讲", "未评"), ("计划", "一般"), ("计划", ""), ("", "未评")):
-            async with engine.connect() as conn:
-                trans = await conn.begin()
-                try:
-                    with pytest.raises(IntegrityError):
-                        await conn.execute(text(insert), {
-                            "id": uuid4(), "session": uuid4(), "material": uuid4(),
-                            "status": status, "effect": effect,
-                        })
-                finally:
-                    await trans.rollback()
-
-        # 外键：不存在的场次或素材
-        for session_id, material_id in ((uuid4(), uuid4()),):
-            async with engine.connect() as conn:
-                trans = await conn.begin()
-                try:
-                    with pytest.raises(IntegrityError):
-                        await conn.execute(text(insert), {
-                            "id": uuid4(), "session": session_id, "material": material_id,
-                            "status": "计划", "effect": "未评",
-                        })
-                finally:
-                    await trans.rollback()
+        async with engine.connect() as conn:
+            with pytest.raises(IntegrityError) as raised:
+                await conn.execute(text(
+                    "insert into usages (id, session_id, material_id, status, effect, reaction) "
+                    "values (:id, :session, :material, :status, :effect, :reaction)"
+                ), {"id": uuid4(), "session": session_id, "material": material_id,
+                    "status": status, "effect": effect, "reaction": reaction})
+            assert f'"{constraint}"' in str(raised.value.orig)
     finally:
         await engine.dispose()
+
+
+@pytest.mark.parametrize(("missing", "constraint"), [
+    ("session", "fk_usages_session_id"),
+    ("material", "fk_usages_material_id"),
+])
+def test_database_enforces_usage_foreign_keys(client: TestClient, missing: str,
+                                              constraint: str) -> None:
+    session = create_session_for(client)
+    material = create_material(client)
+    session_id = str(uuid4()) if missing == "session" else session["id"]
+    material_id = str(uuid4()) if missing == "material" else material["id"]
+    asyncio.run(_assert_usage_constraint(session_id, material_id,
+                                         "计划", "未评", None, constraint))
 
 
 def test_database_rejects_duplicate_session_material_pair(client: TestClient) -> None:
