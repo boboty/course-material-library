@@ -9,7 +9,7 @@
 - Task 4: PASS
 - Task 5: PASS
 - Task 6: PASS
-- Task 7: 待复验
+- Task 7: PASS
 
 ## 已验收基线
 
@@ -17,6 +17,7 @@
 - Task 4 accepted baseline: b08aa3fbbc8b0e7196a9827b50f9d6df491a3e9d
 - Task 5 accepted baseline: 5ede01337f99fc4743fcb2b93896640e10c993e9
 - Task 6 accepted baseline: 32deec0e5f8fd8776785d046cdb3be1310ce735f
+- Task 7 accepted baseline: cdfd3d8ef8074997601cde7658a9fc0f129c55cf
 - Migration head: 0003_usages（单一 head）
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -46,7 +47,7 @@
 - 宿主机 `make dev` 保留为热更新开发方式；Compose 的 db 端口仅绑定 `127.0.0.1`，仅用于宿主机开发与验证
 - Task 6 与已验收 WebApp Starter `075526b` 基线同源：`app/main.py`、`Dockerfile`、`docker-compose.yml` 与该基线一致，仅保留三处项目差异（Dockerfile 去掉未使用的 stage 别名、compose 回环发布 db 端口以保留宿主机开发、`.dockerignore` 额外排除 `.env`）
 - SPA fallback 行为沿用已验收基线：HTML 响应不带 `X-Request-ID`，访问日志把 SPA 页面请求记为 404（客户端实际收到 200）。作为基线继承的已知限制记录，不在本 Task 修改
-- Task 7 本地 Demo 命令仅供 local/development 和回环数据库；两命令均清空全部本地业务数据，`demo-data` 随后灌入固定数据，`demo-clean` 留下空库；不要求与原本地数据共存，不做 ownership 或同名词表复用
+- Task 7：`make demo-data` 清空本地全部业务数据后灌入固定 Demo 数据；`make demo-clean` 清空本地全部业务数据并保留 schema/migration；两者仅允许 local/development 与回环数据库；不要求与原本地数据共存，不做 ownership 或同名词表复用
 
 ## 当前已实现
 
@@ -59,7 +60,6 @@
 - 课后登记页与场次详情入口，移动端 375px 核心操作及保存后读回
 - Task 5 完整候选集分页取全：场次创建页的客户 / 启用课程 / 人群类型、客户表单的行业、词表维护页的行业与人群类型在超过 100 条后仍完整可选 / 可见
 - Task 6 Compose 完整交付：app + PostgreSQL、生产前端随镜像、FastAPI 提供 SPA 与 API、db healthy 后自动 migration、app healthcheck、数据库 volume 持久化；宿主机 `make dev` 保留
-
 - Task 7 本地 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空全部本地业务数据后灌入固定数据，`make demo-clean` 清空全部本地业务数据；production 与非回环数据库被拒绝；不随应用启动自动灌入
 
 ## 当前尚未具备
@@ -72,13 +72,12 @@
 
 ## 当前任务
 
-- **Task 7：本地 Demo 数据集 —— 待复验**（Task 文件：`tasks/task-007.md`）。
-- 本轮 RC 修复：按用户重新冻结的语义，`demo-data` 与 `demo-clean` 均先按外键顺序清空全部本地业务数据；前者在同一事务中重新灌入固定虚构数据。删除精确 ownership、同名词表复用和外部引用保护要求。README 明确两命令均删除非 Demo 本地业务数据。
-- Migration / schema：未变；清理后 `alembic current` / `heads` 均为单一 `0003_usages`。
-- 自验：有同名行业与人群词表时 `demo-data` 成功；重复灌入计数稳定；重复清理后全部业务表为空；production 与非本地数据库被拒绝。本机 `make demo-data`、`make demo-clean` 各连续两次通过；`make check` 通过（ruff、pyright、后端 121 passed、前端 11 passed/build、E2E 数据库门禁）；`make smoke` 通过；`make e2e` 14 passed；`git diff --check` 通过。
-- 尚未实现：素材家族、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围；本 Task 不扩展这些功能。
-- 待复验：独立复核全部业务表清理、环境门禁和 README 的破坏性说明。已验收基线仍为 Task 6。
+- **Task 7：本地 Demo 数据集 —— PASS**（Task 文件：`tasks/task-007.md`）。
+- 独立验收结论：PASS；accepted baseline 为 `cdfd3d8ef8074997601cde7658a9fc0f129c55cf`。
+- Migration / schema：未变，单一 head 为 `0003_usages`。
+- 本轮施工自验：有同名词表时灌入成功；重复灌入计数稳定；重复清理后全部业务表为空；production 与非本地数据库被拒绝。`make check` 通过（后端 121 passed、前端 11 passed），`make smoke` 通过，`make e2e` 14 passed。
+- 尚未实现：素材家族、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 对 Task 7 candidate commit 进行独立复验；通过后才更新 `PASS` 与 accepted baseline。
+- 不开始下一 Task；Task 7 已验收，等待后续任务指令。
