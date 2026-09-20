@@ -10,6 +10,7 @@ import { listAllCustomers, type Customer } from '../api/customers'
 import { createSession, getSession, listSessions, sessionDurations, type SessionDuration, type TeachingSession } from '../api/sessions'
 import { listUsages, removePlannedMaterial, type Usage } from '../api/usages'
 import { listAllAudienceTypes, type Vocabulary } from '../api/vocabularies'
+import { effectBadge, materialStatusBadge, usageStatusBadge } from '../ui/statusBadge'
 
 function today(): string {
   const now = new Date()
@@ -30,6 +31,7 @@ export function SessionList() {
   return <main className="material-page by-container">
     <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>授课场次</h1><p className="by-lead">一场次引用一个客户和一门主课程。</p></div><Link className="primary-link" to="/sessions/new">新建场次</Link></header>
     {error && <Callout tone="risk">{error}</Callout>}
+    {!result && !error && <p className="result-count">场次加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 场场次</p><div className="material-grid">
       {result.items.map(session => <Link key={session.id} to={`/sessions/${session.id}`} className="material-link"><Card interactive accent>
         <div className="material-card-top"><h2>{session.customer.name}</h2><Badge>{session.duration}</Badge></div>
@@ -135,9 +137,11 @@ export function SessionDetail() {
 
   return <main className="material-page by-container"><Link to="/sessions">← 返回场次列表</Link>
     {error && <Callout tone="risk">{error}</Callout>}
+    {!session && !error && <p className="result-count">场次加载中…</p>}
     {session && <><div className="by-eyebrow by-eyebrow--tick">场次详情</div>
       <div className="detail-title"><h1>{session.customer.name}</h1><Badge>{session.duration}</Badge></div>
       <p className="by-lead">{session.course.name} · {session.session_date}</p>
+      <div className="detail-actions"><Link className="primary-link" to={`/sessions/${id}/post-class`}>课后登记</Link></div>
       <Card accent className="detail-body"><h2>授课信息</h2>
         <dl className="record-list">
           <dt>日期</dt><dd>{session.session_date}</dd>
@@ -151,14 +155,18 @@ export function SessionDetail() {
         </dl>
       </Card>
       <Card className="detail-body">
-        <Link className="primary-link" to={`/sessions/${id}/post-class`}>课后登记</Link>
-        <div className="material-card-top"><h2>计划素材（{usages.length}）</h2><Link className="primary-link" to={`/sessions/${id}/materials`}>选择计划素材</Link></div>
+        <div className="material-card-top"><h2>计划素材（{usages.length}）</h2><Link className="secondary-link" to={`/sessions/${id}/materials`}>选择计划素材</Link></div>
         {usages.length === 0 && <p>还没有计划素材。</p>}
         {usages.length > 0 && <ul className="planned-list">
           {usages.map(usage => <li key={usage.id} className="planned-item">
             <div>
               <Link to={`/materials/${usage.material.id}`}>{usage.material.title}</Link>
-              <span className="record-meta"> · {usage.material.type || '未填写类型'} · {usage.material.status} · {usage.status} / {usage.effect}</span>
+              <div className="record-badges">
+                <span className="record-meta">{usage.material.type || '未填写类型'}</span>
+                <Badge {...materialStatusBadge(usage.material.status)}>{usage.material.status}</Badge>
+                <Badge {...usageStatusBadge(usage.status)}>{usage.status}</Badge>
+                <Badge {...effectBadge(usage.effect)}>{usage.effect}</Badge>
+              </div>
             </div>
             {usage.status === '计划' && <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>}
           </li>)}

@@ -8,6 +8,7 @@ import { ApiError } from '../api/client'
 import { listMaterials, type Material } from '../api/materials'
 import { getSession, type TeachingSession } from '../api/sessions'
 import { listUsages, planMaterial, removePlannedMaterial, type Usage } from '../api/usages'
+import { effectBadge, materialStatusBadge, usageStatusBadge } from '../ui/statusBadge'
 
 export function SessionMaterials() {
   const { id = '' } = useParams()
@@ -84,7 +85,12 @@ export function SessionMaterials() {
         {usages.map(usage => <li key={usage.id} className="planned-item">
           <div>
             <Link to={`/materials/${usage.material.id}`}>{usage.material.title}</Link>
-            <span className="record-meta"> · {usage.material.type || '未填写类型'} · {usage.material.status} · {usage.status} / {usage.effect}</span>
+            <div className="record-badges">
+              <span className="record-meta">{usage.material.type || '未填写类型'}</span>
+              <Badge {...materialStatusBadge(usage.material.status)}>{usage.material.status}</Badge>
+              <Badge {...usageStatusBadge(usage.status)}>{usage.status}</Badge>
+              <Badge {...effectBadge(usage.effect)}>{usage.effect}</Badge>
+            </div>
           </div>
           {usage.status === '计划' && <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>}
         </li>)}
@@ -107,7 +113,10 @@ export function SessionMaterials() {
         {results.map(material => <li key={material.id} className="planned-item">
           <div>
             <Link to={`/materials/${material.id}`}>{material.title}</Link>
-            <span className="record-meta"> · {material.type || '未填写类型'} · {material.status}</span>
+            <div className="record-badges">
+              <span className="record-meta">{material.type || '未填写类型'}</span>
+              <Badge {...materialStatusBadge(material.status)}>{material.status}</Badge>
+            </div>
           </div>
           {plannedIds.has(material.id)
             ? <Badge tone="success">已加入本场计划</Badge>

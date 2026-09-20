@@ -6,6 +6,7 @@ import { MaterialCreate, MaterialDetail, MaterialList } from '../pages/Materials
 import { SessionCreate, SessionDetail, SessionList } from '../pages/Sessions'
 import { SessionMaterials } from '../pages/SessionMaterials'
 import { PostClass } from '../pages/PostClass'
+import { NotFound } from '../pages/NotFound'
 import { SystemStatus } from '../pages/SystemStatus'
 import { VocabularyMaintenance } from '../pages/Vocabularies'
 
@@ -28,5 +29,6 @@ export function AppRouter() {
     <Route path="/sessions/:id/materials" element={<SessionMaterials />} />
     <Route path="/sessions/:id" element={<SessionDetail />} />
     <Route path="/status" element={<SystemStatus />} />
+    <Route path="*" element={<NotFound />} />
   </Routes></AppLayout>
 }

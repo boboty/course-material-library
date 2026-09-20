@@ -10,6 +10,7 @@
 - Task 5: PASS
 - Task 6: PASS
 - Task 7: PASS
+- Task 8: 待独立验收
 
 ## 已验收基线
 
@@ -48,6 +49,7 @@
 - Task 6 与已验收 WebApp Starter `075526b` 基线同源：`app/main.py`、`Dockerfile`、`docker-compose.yml` 与该基线一致，仅保留三处项目差异（Dockerfile 去掉未使用的 stage 别名、compose 回环发布 db 端口以保留宿主机开发、`.dockerignore` 额外排除 `.env`）
 - SPA fallback 行为沿用已验收基线：HTML 响应不带 `X-Request-ID`，访问日志把 SPA 页面请求记为 404（客户端实际收到 200）。作为基线继承的已知限制记录，不在本 Task 修改
 - Task 7：`make demo-data` 清空本地全部业务数据后灌入固定 Demo 数据；`make demo-clean` 清空本地全部业务数据并保留 schema/migration；两者仅允许 local/development 与回环数据库；不要求与原本地数据共存，不做 ownership 或同名词表复用
+- Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
 
 ## 当前已实现
 
@@ -61,6 +63,7 @@
 - Task 5 完整候选集分页取全：场次创建页的客户 / 启用课程 / 人群类型、客户表单的行业、词表维护页的行业与人群类型在超过 100 条后仍完整可选 / 可见
 - Task 6 Compose 完整交付：app + PostgreSQL、生产前端随镜像、FastAPI 提供 SPA 与 API、db healthy 后自动 migration、app healthcheck、数据库 volume 持久化；宿主机 `make dev` 保留
 - Task 7 本地 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空全部本地业务数据后灌入固定数据，`make demo-clean` 清空全部本地业务数据；production 与非回环数据库被拒绝；不随应用启动自动灌入
+- Task 8 展示收口：页面 title / `html lang=zh-CN` / BenYan favicon；素材状态、使用效果、使用状态全站统一 Badge tone；场次详情“课后登记”为标题区主要操作、“选择计划素材”为次级操作；课后登记页 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404、列表与详情 loading、词表页错误返回入口修正；素材列表正文两行摘要
 
 ## 当前尚未具备
 
@@ -72,12 +75,13 @@
 
 ## 当前任务
 
-- **Task 7：本地 Demo 数据集 —— PASS**（Task 文件：`tasks/task-007.md`）。
-- 独立验收结论：PASS；accepted baseline 为 `cdfd3d8ef8074997601cde7658a9fc0f129c55cf`。
-- Migration / schema：未变，单一 head 为 `0003_usages`。
-- 本轮施工自验：有同名词表时灌入成功；重复灌入计数稳定；重复清理后全部业务表为空；production 与非本地数据库被拒绝。`make check` 通过（后端 121 passed、前端 11 passed），`make smoke` 通过，`make e2e` 14 passed。
-- 尚未实现：素材家族、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
+- **Task 8：v0.1 展示完成度收口 —— 待独立验收**（Task 文件：`tasks/task-008.md`）。
+- 本轮实际完成范围：Starter 痕迹清理（title、lang、favicon）；`web/src/ui/statusBadge.ts` 统一素材状态 / 使用效果 / 使用状态 Badge tone；场次详情主操作层级调整；课后登记 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404 页与关键字面 loading 状态；词表页错误返回入口移除；素材列表正文两行摘要。
+- Migration / schema：未变，单一 head 仍为 `0003_usages`；未新增或修改 API 契约、后端字段与统计接口。
+- 本轮施工自验：`make check` 通过（后端 121 passed、前端 14 passed，含新增 Badge 映射单测）；`make smoke` 通过；`make e2e` 18 passed（新增 404 / title / lang 与 800px、375px 无横向溢出用例）；另用真实浏览器在 800×900 与 375×812 逐页截图检查素材列表、场次详情、课后登记 sticky 保存区与 404 页，无明显布局问题。
+- 已知限制 / 待验收事项：Badge tone 取值与 sticky 交互为展示层判断，需独立验收确认；未改变 Task 1–7 业务行为。
+- 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 不开始下一 Task；Task 7 已验收，等待后续任务指令。
+- 不开始下一 Task；Task 8 进入独立验收，验收后由执行角色更新 `PROGRESS.md`。

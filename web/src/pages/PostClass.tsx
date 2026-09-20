@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router'
 import { Button } from '../../../ui/design-system/components/core/Button.jsx'
+import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError } from '../api/client'
@@ -8,6 +9,7 @@ import { listMaterials, type Material } from '../api/materials'
 import { savePostClass, type UsageEdit } from '../api/postClass'
 import { getSession, type TeachingSession } from '../api/sessions'
 import { listUsages, type Usage } from '../api/usages'
+import { materialStatusBadge } from '../ui/statusBadge'
 
 type Draft = { key: string; usage?: Usage; material: Material | { id: string; title: string }; result: UsageEdit }
 
@@ -83,6 +85,9 @@ export function PostClass() {
     finally { setSaving(false) }
   }
 
+  const usedCount = rows.filter(row => row.result.status === '已用').length
+  const unusedCount = rows.filter(row => row.result.status === '未用').length
+
   return <main className="material-page by-container"><Link to={`/sessions/${id}`}>← 返回场次详情</Link>
     <div className="by-eyebrow by-eyebrow--tick">课后登记</div><h1>保存实际使用情况</h1>
     <p className="by-lead">{session ? `${session.session_date} · ${session.customer.name} · ${session.course.name}` : '场次信息加载中…'}</p>
@@ -101,12 +106,18 @@ export function PostClass() {
     </Card>)}
     <Card className="detail-body"><h2>补记已有素材</h2><form className="search-row" onSubmit={search}>
       <label htmlFor="post-class-search">搜索素材标题</label><input id="post-class-search" value={query} onChange={event => setQuery(event.target.value)} /><Button type="submit">搜索</Button>
-    </form><ul className="planned-list">{results.map(material => <li key={material.id} className="planned-item"><span>{material.title} · {material.status}</span>
+    </form><ul className="planned-list">{results.map(material => <li key={material.id} className="planned-item"><span className="planned-material"><span>{material.title}</span><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></span>
       <Button size="sm" disabled={rows.some(row => row.material.id === material.id)} onClick={() => addExisting(material)}>加入本场</Button></li>)}</ul></Card>
     <Card className="detail-body"><h2>现场新内容</h2><form className="search-row" onSubmit={addNew}>
       <label htmlFor="post-class-new">素材标题</label><input id="post-class-new" maxLength={255} value={newTitle} onChange={event => setNewTitle(event.target.value)} /><Button type="submit">加入草稿</Button>
     </form></Card>
-    {error && <Callout tone="risk">{error}</Callout>}{saved && <Callout tone="info">课后登记已保存</Callout>}
-    <Button onClick={save} disabled={saving || !session}>{saving ? '保存中…' : '保存课后登记'}</Button>
+    <div className="post-class-save">
+      {error && <Callout tone="risk">{error}</Callout>}
+      {saved && <Callout tone="info">课后登记已保存</Callout>}
+      <div className="post-class-save__bar">
+        <span className="record-meta">本场登记：已用 {usedCount} · 未用 {unusedCount}</span>
+        <Button onClick={save} disabled={saving || !session}>{saving ? '保存中…' : '保存课后登记'}</Button>
+      </div>
+    </div>
   </main>
 }

@@ -60,3 +60,28 @@
 .post-class-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1rem; }
 .post-class-controls label { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
 .post-class-controls select, .post-class-controls textarea { width: 100%; min-width: 0; }
+
+/* 标题与 Badge 同排时：标题可收缩换行，Badge 不压缩、不换行，也不改变卡片布局高度。 */
+.material-card-top > :first-child,
+.detail-title > :first-child,
+.status-card__top > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.material-card-top > :last-child:not(.record-meta),
+.detail-title > :last-child,
+.status-card__top > :last-child { flex: 0 0 auto; }
+
+/* 场次详情的主动作提升到标题 / 摘要区域 */
+.detail-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
+/* 使用记录一行内的状态 / 效果 Badge，窄屏允许整组换行 */
+.record-badges { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.planned-material { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 0; }
+
+/* 素材列表正文摘要：最多两行，超出省略 */
+.material-excerpt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.material-excerpt--empty { font-style: italic; }
+
+.not-found__back { margin-top: var(--space-7); }
+
+/* 课后登记保存区：滚动中始终停在视口底部，桌面与手机都可触达 */
+.post-class-save { position: sticky; bottom: 0; z-index: 5; display: grid; gap: var(--space-3); margin-top: var(--space-6); padding: var(--space-3) 0 var(--space-4); background: var(--surface-page); border-top: 1px solid var(--border-subtle); box-shadow: 0 -10px 18px -16px rgba(20, 27, 33, 0.35); }
+.post-class-save__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }

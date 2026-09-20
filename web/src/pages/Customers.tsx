@@ -28,6 +28,7 @@ export function CustomerList() {
       <label htmlFor="customer-search">搜索客户</label><input id="customer-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
     </form>
     {error && <Callout tone="risk">{error}</Callout>}
+    {!result && !error && <p className="result-count">客户加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 个客户</p><div className="material-grid">
       {result.items.map(customer => <Link key={customer.id} to={`/customers/${customer.id}/edit`} className="material-link"><Card interactive accent>
         <div className="material-card-top"><h2>{customer.name}</h2><span className="record-meta">{customer.short_name || '—'}</span></div>

@@ -28,6 +28,7 @@ export function CourseList() {
       <label htmlFor="course-search">搜索课程</label><input id="course-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
     </form>
     {error && <Callout tone="risk">{error}</Callout>}
+    {!result && !error && <p className="result-count">课程加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 门课程</p><div className="material-grid">
       {result.items.map(course => <Link key={course.id} to={`/courses/${course.id}/edit`} className="material-link"><Card interactive accent>
         <div className="material-card-top"><h2>{course.name}</h2><Badge tone={course.status === '启用' ? 'success' : 'neutral'}>{course.status}</Badge></div>

@@ -81,7 +81,8 @@ test('plan two materials, reopen, remove one, reopen again', async ({ page }) =>
   await expect(planned.getByRole('heading', { name: '计划素材（2）' })).toBeVisible()
   await expect(planned.getByRole('link', { name: materialA })).toBeVisible()
   await expect(planned.getByRole('link', { name: materialB })).toBeVisible()
-  await expect(planned.getByText('计划 / 未评').first()).toBeVisible()
+  await expect(planned.getByText('计划', { exact: true }).first()).toBeVisible()
+  await expect(planned.getByText('未评', { exact: true }).first()).toBeVisible()
 
   // 刷新后仍然存在
   await page.reload()

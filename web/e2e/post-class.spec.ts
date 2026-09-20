@@ -155,7 +155,11 @@ test('375px registration controls remain usable without horizontal scrolling', a
     .getByRole('button', { name: '加入本场' }).click()
   await page.getByLabel('素材标题', { exact: true }).fill(newTitle)
   await page.getByRole('button', { name: '加入草稿' }).click()
-  await page.getByRole('button', { name: '保存课后登记' }).click()
+  // 长页面滚动到顶部后，保存动作仍应停在视口内（sticky 保存区）
+  const saveButton = page.getByRole('button', { name: '保存课后登记' })
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await expect(saveButton).toBeInViewport()
+  await saveButton.click()
   await expect(page.getByText('课后登记已保存')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })

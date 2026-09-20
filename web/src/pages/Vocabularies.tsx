@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router'
 import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
@@ -78,7 +77,6 @@ function VocabularySection({ kind }: { kind: Kind }) {
 
 export function VocabularyMaintenance() {
   return <main className="material-page by-container">
-    <Link to="/customers">← 返回客户列表</Link>
     <div className="by-eyebrow by-eyebrow--tick">基础词表</div>
     <h1>词表维护</h1>
     <p className="by-lead">V1 只维护客户与场次当前需要的最小词表，不做通用词表框架。</p>
