@@ -12,6 +12,7 @@ check:
 	$(VENV_BIN)/ruff check .
 	$(VENV_BIN)/pyright
 	$(VENV_BIN)/pytest
+	./scripts/verify_e2e_db_guard.sh
 	cd web && npm run check
 
 smoke:

@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.db.session import get_session
+from app.main import app
 from app.models.customer import Customer
 from app.models.session import Session
 from tests.conftest import TEST_DATABASE_URL
@@ -305,26 +307,21 @@ def _customer(name: str) -> Customer:
     return Customer(name=name)
 
 
-def test_duplicate_name_reaching_database_returns_409_not_500(client: TestClient) -> None:
-    """绕过接口预检查时，唯一约束兜底必须返回 409，不能泄漏成数据库 500。"""
-    from fastapi.testclient import TestClient as SyncTestClient
-
-    from app.db.session import get_session
-    from app.main import app
-
+def test_duplicate_name_reaching_database_returns_business_conflict(client: TestClient) -> None:
+    """并发下绕过接口预检查时，唯一约束仍必须转成业务冲突 409，而不是数据库 500。"""
     name = unique_name("虚构兜底客户")
     create_customer(client, name=name)
 
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
     maker = async_sessionmaker(engine, expire_on_commit=False)
 
-    async def session_without_precheck():
+    async def session_without(_missing: str | None = None):  # 保持与 get_session 相同的依赖签名
         async with maker() as session:
             yield session
 
-    app.dependency_overrides[get_session] = session_without_precheck
+    app.dependency_overrides[get_session] = session_without
     try:
-        with SyncTestClient(app, raise_server_exceptions=False) as fallback_client:
+        with TestClient(app) as fallback_client:
             response = fallback_client.post("/api/v1/customers", json={"name": name})
     finally:
         app.dependency_overrides.clear()

@@ -20,8 +20,14 @@ export type CustomerInput = {
   notes: string
 }
 
-export async function listCustomers(q = '', page = 1): Promise<Page<Customer>> {
-  return request(`/api/v1/customers?${pageQuery({ q, page, page_size: 20 })}`)
+export async function listCustomers(q = '', page = 1, pageSize = 20): Promise<Page<Customer>> {
+  return request(`/api/v1/customers?${pageQuery({ q, page, page_size: pageSize })}`)
+}
+
+/** 场次表单的客户下拉需要完整候选集，V1 在上限 100 条内一次性加载。 */
+export async function listAllCustomers(): Promise<Customer[]> {
+  const result = await listCustomers('', 1, 100)
+  return result.items
 }
 
 export async function getCustomer(id: string): Promise<Customer> {

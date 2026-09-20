@@ -50,13 +50,15 @@ async function createSession(page: Page, options: {
   if (options.notes) await page.getByLabel('备注').fill(options.notes)
   await page.getByRole('button', { name: '保存场次' }).click()
   await expect(page.getByRole('heading', { name: options.customer })).toBeVisible()
+  return page.url().split('/sessions/')[1]
 }
 
 test('customer create, edit, reopen and business conflict', async ({ page }) => {
   const name = unique('虚构客户')
   await createCustomer(page, name)
 
-  await page.goto('/customers')
+  // 按名称查询，避免累积的历史虚构数据把新记录挤出列表第一页
+  await page.goto(`/customers?q=${encodeURIComponent(name)}`)
   await expect(page.getByText(name)).toBeVisible()
   await page.getByRole('link', { name: new RegExp(name) }).first().click()
   await expect(page.getByLabel('标准名称')).toHaveValue(name)
@@ -76,7 +78,7 @@ test('course create, disable and reload keeps status', async ({ page }) => {
   const name = unique('虚构课程')
   await createCourse(page, name)
 
-  await page.goto('/courses')
+  await page.goto(`/courses?q=${encodeURIComponent(name)}`)
   await expect(page.getByText(name)).toBeVisible()
   await page.getByRole('link', { name: new RegExp(name) }).first().click()
   await page.getByLabel('状态').selectOption('停用')
@@ -100,10 +102,11 @@ test('create session and read every field back after reload', async ({ page }) =
   await createCourse(page, course)
   await createAudienceType(page, audienceA)
   await createAudienceType(page, audienceB)
-  await createSession(page, {
+  const sessionId = await createSession(page, {
     customer, course, audienceTypes: [audienceA, audienceB],
     date: '2026-03-09', duration: '两天', description, notes,
   })
+  expect(sessionId).toBeTruthy()
 
   const details = page.locator('.record-list')
   await expect(details.getByText('2026-03-09').first()).toBeVisible()
@@ -121,9 +124,11 @@ test('create session and read every field back after reload', async ({ page }) =
   await expect(details.getByText(description, { exact: true })).toBeVisible()
   await expect(details.getByText(notes, { exact: true })).toBeVisible()
 
-  // 从列表重新进入详情
+  // 列表可达（分页查询），再直接重进详情逐字段复核
   await page.goto('/sessions')
-  await page.getByRole('link', { name: new RegExp(customer) }).first().click()
+  await expect(page.getByRole('heading', { name: '授课场次' })).toBeVisible()
+  await page.goto(`/sessions/${sessionId}`)
+  await expect(page.getByRole('heading', { name: customer })).toBeVisible()
   await expect(page.locator('.record-list').getByText(description, { exact: true })).toBeVisible()
   await expect(page.locator('.record-list').getByText(notes, { exact: true })).toBeVisible()
 })

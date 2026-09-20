@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 
 
@@ -43,8 +42,3 @@ def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return error_response(request, "VALIDATION_ERROR", "Invalid request", 422)
-
-    @app.exception_handler(IntegrityError)
-    async def integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
-        """兜底：唯一约束等并发冲突返回 409，不向客户端暴露数据库细节。"""
-        return error_response(request, "CONFLICT", "Conflicting record", 409)

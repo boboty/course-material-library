@@ -6,7 +6,7 @@ import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError, type Page } from '../api/client'
 import { getCourse, listEnabledCourses, type Course } from '../api/courses'
-import { listCustomers, type Customer } from '../api/customers'
+import { listAllCustomers, type Customer } from '../api/customers'
 import { createSession, getSession, listSessions, sessionDurations, type SessionDuration, type TeachingSession } from '../api/sessions'
 import { listAudienceTypes, type Vocabulary } from '../api/vocabularies'
 
@@ -56,7 +56,7 @@ export function SessionCreate() {
 
   useEffect(() => {
     let active = true
-    listCustomers('', 1).then(data => { if (active) setCustomers(data.items) }).catch(() => {})
+    listAllCustomers().then(items => { if (active) setCustomers(items) }).catch(() => {})
     listEnabledCourses().then(items => { if (active) setCourses(items) }).catch(() => {})
     listAudienceTypes().then(data => { if (active) setAudienceTypes(data.items) }).catch(() => {})
     return () => { active = false }

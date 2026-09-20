@@ -3,8 +3,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # 消除隐藏前置条件：E2E 自行准备专用数据库并迁移到最新 head。
+# 连接参数在此统一确定并导出，校验与使用保持同一组值。
+export E2E_POSTGRES_DB="${E2E_POSTGRES_DB:-benyan_e2e}"
+export PGHOST="${PGHOST:-localhost}"
+export PGPORT="${PGPORT:-5432}"
+export PGUSER="${PGUSER:-benyan}"
+export PGPASSWORD="${PGPASSWORD:-benyan_local}"
 ./scripts/e2e_db.sh
-export DATABASE_URL="postgresql+asyncpg://${PGUSER:-benyan}:${PGPASSWORD:-benyan_local}@${PGHOST:-localhost}:${PGPORT:-5432}/${E2E_POSTGRES_DB:-benyan_e2e}"
+export DATABASE_URL="postgresql+asyncpg://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${E2E_POSTGRES_DB}"
 
 ./scripts/dev.sh &
 stack_pid=$!

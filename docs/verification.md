@@ -2,7 +2,9 @@
 
 运行 `make check` 做 ruff、pyright、pytest 与 web lint/typecheck/Vitest/build 代码级门禁；运行 `make smoke` 实际启动 Uvicorn，验证 `/api/v1/health` 的 200 与 `/api/v1/not-found` 的 404、JSON 和 X-Request-ID；运行 `make e2e` 用 Playwright 经过 Vite 代理调用真实后端。
 
-`make e2e` 自行准备数据库：`scripts/e2e_db.sh` 会创建（若不存在）专用数据库 `benyan_e2e` 并执行 `alembic upgrade head`，随后以该数据库启动后端。E2E 不依赖任何未写明的手工 migration 步骤，也不连接真实业务数据库；数据库名可用 `E2E_POSTGRES_DB` 覆盖。
+`make e2e` 自行准备数据库：`scripts/e2e_db.sh` 会创建（若不存在）专用数据库 `benyan_e2e` 并执行 `alembic upgrade head`，随后以该数据库启动后端。E2E 不依赖任何未写明的手工 migration 步骤，也不连接真实业务数据库。
+
+E2E 数据库名有安全门禁：只允许小写字母、数字和下划线且以字母开头，必须以 `_e2e` 结尾；`benyan`、`benyan_test`、`benyan_dev`、`postgres`、`template0/1` 等非 E2E 名称直接拒绝；`PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD` 同样做格式校验，数据库名通过 psql 变量传入而不拼接进 SQL。`./scripts/verify_e2e_db_guard.sh` 覆盖这些拒绝路径，并作为 `make check` 的一步执行。
 
 后端测试使用真实 PostgreSQL（`TEST_DATABASE_URL`，默认 `benyan_test`），需要该库已执行 `alembic upgrade head`。`tests/conftest.py` 断言测试库名必须以 `/benyan_test` 结尾，防止误连业务库。测试数据全部为虚构内容，且带随机后缀以便重复执行。
 
