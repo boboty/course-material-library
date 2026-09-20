@@ -86,7 +86,7 @@ export function SessionMaterials() {
             <Link to={`/materials/${usage.material.id}`}>{usage.material.title}</Link>
             <span className="record-meta"> · {usage.material.type || '未填写类型'} · {usage.material.status} · {usage.status} / {usage.effect}</span>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>
+          {usage.status === '计划' && <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>}
         </li>)}
       </ul>}
     </Card>

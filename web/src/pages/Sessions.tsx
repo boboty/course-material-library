@@ -151,6 +151,7 @@ export function SessionDetail() {
         </dl>
       </Card>
       <Card className="detail-body">
+        <Link className="primary-link" to={`/sessions/${id}/post-class`}>课后登记</Link>
         <div className="material-card-top"><h2>计划素材（{usages.length}）</h2><Link className="primary-link" to={`/sessions/${id}/materials`}>选择计划素材</Link></div>
         {usages.length === 0 && <p>还没有计划素材。</p>}
         {usages.length > 0 && <ul className="planned-list">
@@ -159,7 +160,7 @@ export function SessionDetail() {
               <Link to={`/materials/${usage.material.id}`}>{usage.material.title}</Link>
               <span className="record-meta"> · {usage.material.type || '未填写类型'} · {usage.material.status} · {usage.status} / {usage.effect}</span>
             </div>
-            <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>
+            {usage.status === '计划' && <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>}
           </li>)}
         </ul>}
       </Card>

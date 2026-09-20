@@ -5,6 +5,7 @@ import { CustomerForm, CustomerList } from '../pages/Customers'
 import { MaterialCreate, MaterialDetail, MaterialList } from '../pages/Materials'
 import { SessionCreate, SessionDetail, SessionList } from '../pages/Sessions'
 import { SessionMaterials } from '../pages/SessionMaterials'
+import { PostClass } from '../pages/PostClass'
 import { SystemStatus } from '../pages/SystemStatus'
 import { VocabularyMaintenance } from '../pages/Vocabularies'
 
@@ -23,6 +24,7 @@ export function AppRouter() {
     <Route path="/vocabularies" element={<VocabularyMaintenance />} />
     <Route path="/sessions" element={<SessionList />} />
     <Route path="/sessions/new" element={<SessionCreate />} />
+    <Route path="/sessions/:id/post-class" element={<PostClass />} />
     <Route path="/sessions/:id/materials" element={<SessionMaterials />} />
     <Route path="/sessions/:id" element={<SessionDetail />} />
     <Route path="/status" element={<SystemStatus />} />
