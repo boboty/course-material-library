@@ -1,0 +1,21 @@
+<!-- @dsCard group="Brand" viewport="700x210" name="Mark & App Icon" subtitle="The forward-motion wing — clear space ≥ mark height ÷ 2" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 26px; background: var(--surface-page); display: flex; gap: 26px; align-items: center; justify-content: center; }
+  .tile { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .tile img { height: 110px; width: auto; }
+  .onpaper { background: var(--white); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 16px 26px; box-shadow: var(--shadow-sm); }
+  .ondark { background: var(--surface-dark); border-radius: var(--radius-lg); padding: 16px 26px; }
+  .ondark img { height: 90px; border-radius: 20px; }
+  .v { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="tile"><div class="onpaper"><img src="../assets/logo-mark.png" alt="mark"></div><span class="v">mark / on paper</span></div>
+  <div class="tile"><div class="ondark"><img src="../assets/logo-appicon.png" alt="app icon"></div><span class="v">app icon / on ink</span></div>
+</body>
+</html>

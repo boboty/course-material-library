@@ -1,0 +1,39 @@
+<!-- @dsCard group="Slides" viewport="1280x720" name="Methodology Slide" subtitle="Four-step framework" -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; }
+  .slide { width: 1280px; height: 720px; background: var(--paper); font-family: var(--font-sans); padding: 80px 96px; box-sizing: border-box; display: flex; flex-direction: column; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-brand); }
+  .eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--brand); }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 48px; letter-spacing: -.022em; margin: 18px 0 6px; color: var(--text-strong); }
+  .sub { font-size: 19px; color: var(--text-muted); margin: 0 0 56px; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; flex: 1; align-content: start; }
+  .step { position: relative; padding-right: 28px; }
+  .step:not(:last-child)::after { content: ""; position: absolute; top: 27px; right: 14px; width: 28px; height: 2px; background: var(--border-default); }
+  .badge { width: 56px; height: 56px; border-radius: 16px; display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 600; font-size: 22px; margin-bottom: 22px; }
+  .b1 { background: var(--brand); color: #fff; box-shadow: var(--shadow-brand); }
+  .b2 { background: var(--ink-800); color: #fff; }
+  .b3 { background: var(--surface-card); color: var(--text-faint); border: 1.5px solid var(--border-default); }
+  .step h3 { font-family: var(--font-display); font-weight: 700; font-size: 23px; margin: 0 0 10px; color: var(--text-strong); }
+  .step p { font-size: 15px; line-height: 1.6; color: var(--text-muted); margin: 0; padding-right: 18px; }
+  .step .tag { display: inline-block; margin-top: 16px; font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; color: var(--emerald-700); background: var(--surface-brand-soft); border: 1px solid var(--emerald-200); padding: 3px 10px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <span class="eyebrow">落地方法论 · Framework</span>
+    <h2>AI 场景落地四步法</h2>
+    <p class="sub">从识别到规模化，每一步都配套可复用的评估与交付物。</p>
+    <div class="steps">
+      <div class="step"><div class="badge b1">01</div><h3>场景识别</h3><p>盘点业务流程，标注高价值、高频、可数据化的候选场景。</p><span class="tag">场景清单</span></div>
+      <div class="step"><div class="badge b1">02</div><h3>价值评估</h3><p>用 ROI 与风险矩阵排序，锁定优先级最高的 2–3 个切入点。</p><span class="tag">评估矩阵</span></div>
+      <div class="step"><div class="badge b2">03</div><h3>试点验证</h3><p>小步快跑搭建原型，建立评估基线与质量门禁。</p><span class="tag">评估基线</span></div>
+      <div class="step"><div class="badge b3">04</div><h3>规模落地</h3><p>沉淀工作流与资产，推广到更多团队并持续优化。</p><span class="tag">可复用工作流</span></div>
+    </div>
+  </div>
+</body>
+</html>

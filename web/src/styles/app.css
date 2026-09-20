@@ -1,0 +1,7 @@
+.status-page { padding-block: var(--space-12); }
+.status-page h1 { margin-block: var(--space-4) var(--space-2); }
+.status-page > .by-lead { margin-bottom: var(--space-8); }
+.status-card { max-width: var(--container-sm); }
+.status-card h2 { font-size: var(--text-xl); }
+.status-card p { margin-block: var(--space-6); color: var(--text-body); }
+.status-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }

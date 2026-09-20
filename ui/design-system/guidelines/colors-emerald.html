@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x140" name="Emerald Scale" subtitle="Primary brand ramp, 50 → 900" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 22px; background: var(--surface-page); }
+  .ramp { display: grid; grid-template-columns: repeat(10, 1fr); border-radius: var(--radius-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .cell { height: 64px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; font-family: var(--font-mono); font-size: 10px; }
+  .lbl { display: grid; grid-template-columns: repeat(10, 1fr); margin-top: 8px; }
+  .lbl span { text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+  <div class="ramp">
+    <div class="cell" style="background:#eaf7f3;color:#0a5a4c">50</div>
+    <div class="cell" style="background:#d7f3ec;color:#0a5a4c">100</div>
+    <div class="cell" style="background:#bfe7db;color:#0a5a4c">200</div>
+    <div class="cell" style="background:#8fd9c8;color:#073f35">300</div>
+    <div class="cell" style="background:#4fc3ab;color:#073f35">400</div>
+    <div class="cell" style="background:#16a98f;color:#fff">500</div>
+    <div class="cell" style="background:#0d8b76;color:#fff">600</div>
+    <div class="cell" style="background:#0c7361;color:#fff">700</div>
+    <div class="cell" style="background:#0a5a4c;color:#fff">800</div>
+    <div class="cell" style="background:#073f35;color:#fff">900</div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,44 @@
+<!-- @dsCard group="Slides" viewport="1280x720" name="Content Slide" subtitle="Title + points with side panel" -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; }
+  .slide { width: 1280px; height: 720px; position: relative; overflow: hidden; background: var(--paper); font-family: var(--font-sans); padding: 76px 96px; box-sizing: border-box; display: flex; flex-direction: column; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-brand); }
+  .eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--brand); }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 48px; line-height: 1.1; letter-spacing: -.022em; margin: 18px 0 0; color: var(--text-strong); max-width: 920px; }
+  .grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; margin-top: 48px; flex: 1; }
+  .points { display: flex; flex-direction: column; gap: 24px; }
+  .pt { display: flex; gap: 18px; }
+  .pt .n { flex: none; width: 38px; height: 38px; border-radius: 10px; background: var(--surface-brand-soft); color: var(--emerald-700); border: 1px solid var(--emerald-200); display: flex; align-items: center; justify-content: center; font-family: var(--font-mono); font-weight: 600; font-size: 16px; }
+  .pt h3 { font-family: var(--font-display); font-weight: 700; font-size: 21px; margin: 4px 0 5px; color: var(--text-strong); }
+  .pt p { font-size: 16px; color: var(--text-muted); line-height: 1.6; margin: 0; }
+  .panel { background: var(--surface-dark); border-radius: var(--radius-xl); padding: 40px 36px; color: #fff; display: flex; flex-direction: column; justify-content: center; gap: 22px; position: relative; overflow: hidden; }
+  .panel::after { content: ""; position: absolute; right: -60px; bottom: -80px; width: 260px; height: 320px; background: var(--grad-wing); opacity: .22; transform: rotate(10deg); }
+  .panel .lbl { font-family: var(--font-mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-on-dark-muted); z-index: 1; }
+  .panel .big { font-family: var(--font-mono); font-weight: 600; font-size: 64px; letter-spacing: -.02em; color: var(--emerald-300); line-height: 1; z-index: 1; }
+  .panel .cap { font-size: 16px; color: rgba(255,255,255,.8); line-height: 1.55; z-index: 1; }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <span class="eyebrow">企业 AI 应用场景设计</span>
+    <h2>识别高价值场景的三个判据</h2>
+    <div class="grid">
+      <div class="points">
+        <div class="pt"><span class="n">01</span><div><h3>价值密度</h3><p>单位流程改造能撬动的业务价值，优先选择高频、高成本环节。</p></div></div>
+        <div class="pt"><span class="n">02</span><div><h3>数据可得性</h3><p>是否有可用、合规、结构化的数据支撑模型推理与评估。</p></div></div>
+        <div class="pt"><span class="n">03</span><div><h3>落地确定性</h3><p>流程边界清晰、容错空间可控，便于小步快跑验证。</p></div></div>
+      </div>
+      <div class="panel">
+        <span class="lbl">经验值 · Benchmark</span>
+        <span class="big">70 / 20 / 10</span>
+        <span class="cap">把 70% 精力投入确定性场景，20% 探索，10% 押注前沿——稳健推进规模化。</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!-- @dsCard group="Slides" viewport="1280x720" name="Case Study Slide" subtitle="Featured case with KPI band" -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; }
+  .slide { width: 1280px; height: 720px; background: var(--paper); font-family: var(--font-sans); padding: 76px 96px; box-sizing: border-box; display: flex; flex-direction: column; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-brand); }
+  .eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--brand); }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 46px; letter-spacing: -.022em; margin: 16px 0 0; color: var(--text-strong); }
+  .badge { font-size: 14px; font-weight: 600; padding: 7px 16px; border-radius: 999px; background: var(--surface-brand-soft); color: var(--emerald-800); border: 1px solid var(--emerald-200); }
+  .body { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; margin-top: 44px; flex: 1; }
+  .narr { display: flex; flex-direction: column; gap: 22px; }
+  .block .t { font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin-bottom: 8px; }
+  .block p { font-size: 17px; line-height: 1.65; color: var(--text-body); margin: 0; }
+  .block.problem { border-left: 3px solid var(--border-strong); padding-left: 18px; }
+  .block.solution { border-left: 3px solid var(--brand); padding-left: 18px; }
+  .kpis { background: var(--surface-dark); border-radius: var(--radius-xl); padding: 40px; display: flex; flex-direction: column; justify-content: center; gap: 30px; position: relative; overflow: hidden; }
+  .kpis::after { content: ""; position: absolute; left: -50px; top: -60px; width: 220px; height: 300px; background: var(--grad-wing); opacity: .2; transform: rotate(-12deg); }
+  .kpi { display: flex; align-items: baseline; gap: 16px; z-index: 1; }
+  .kpi b { font-family: var(--font-mono); font-weight: 600; font-size: 52px; letter-spacing: -.02em; color: var(--emerald-300); line-height: 1; min-width: 150px; }
+  .kpi span { font-size: 16px; color: rgba(255,255,255,.82); line-height: 1.4; }
+  .kpis .rule { height: 1px; background: rgba(255,255,255,.12); z-index: 1; }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="head">
+      <div>
+        <span class="eyebrow">实战案例 · Case Study</span>
+        <h2>金融风控：智能信贷审核助手</h2>
+      </div>
+      <span class="badge">金融 · 12 周交付</span>
+    </div>
+    <div class="body">
+      <div class="narr">
+        <div class="block problem"><div class="t">挑战 · Challenge</div><p>人工审核环节多、口径不统一，平均处理时长高，且难以规模化扩张。</p></div>
+        <div class="block solution"><div class="t">方案 · Approach</div><p>将大模型嵌入审批工作流，自动抽取要素、生成初核意见，并沉淀可复用的评估清单与质量门禁。</p></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b>+38%</b><span>审核效率提升</span></div>
+        <div class="rule"></div>
+        <div class="kpi"><b>4.2×</b><span>项目投资回报 ROI</span></div>
+        <div class="rule"></div>
+        <div class="kpi"><b>6→2</b><span>审批环节压缩</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

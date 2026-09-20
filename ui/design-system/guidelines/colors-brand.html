@@ -1,0 +1,25 @@
+<!-- @dsCard group="Colors" viewport="700x190" name="Brand Palette" subtitle="The four core brand colors" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; padding: 22px; background: var(--surface-page); }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .sw { border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--border-subtle); background: var(--white); }
+  .chip { height: 78px; }
+  .meta { padding: 9px 11px; }
+  .nm { font-weight: 600; font-size: 13px; color: var(--text-body); }
+  .hx { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); letter-spacing: .02em; margin-top: 2px; }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw"><div class="chip" style="background:#1F2933"></div><div class="meta"><div class="nm">Ink</div><div class="hx">#1F2933</div></div></div>
+    <div class="sw"><div class="chip" style="background:#0D8B76"></div><div class="meta"><div class="nm">Emerald</div><div class="hx">#0D8B76</div></div></div>
+    <div class="sw"><div class="chip" style="background:#D7F3EC"></div><div class="meta"><div class="nm">Mint</div><div class="hx">#D7F3EC</div></div></div>
+    <div class="sw"><div class="chip" style="background:#F7FAF8"></div><div class="meta"><div class="nm">Paper</div><div class="hx">#F7FAF8</div></div></div>
+  </div>
+</body>
+</html>

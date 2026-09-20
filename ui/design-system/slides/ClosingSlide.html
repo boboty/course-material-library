@@ -1,0 +1,42 @@
+<!-- @dsCard group="Slides" viewport="1280x720" name="Closing Slide" subtitle="Thanks + contact CTA" -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; }
+  .slide { width: 1280px; height: 720px; position: relative; overflow: hidden; background: var(--grad-dark); color: #fff; font-family: var(--font-sans); padding: 88px 96px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; }
+  .slide::after { content: ""; position: absolute; right: -160px; bottom: -200px; width: 720px; height: 880px; background: var(--grad-wing); opacity: .18; transform: rotate(14deg); }
+  .top { display: flex; align-items: center; gap: 14px; z-index: 2; }
+  .top img { height: 40px; border-radius: 10px; }
+  .top b { font-family: var(--font-display); font-weight: 800; font-size: 19px; }
+  .top b span { color: var(--emerald-400); }
+  .mid { z-index: 2; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--emerald-300); }
+  .eyebrow::before { content: ""; width: 30px; height: 2px; background: var(--emerald-400); }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 72px; letter-spacing: -.025em; margin: 22px 0 0; color: #fff; line-height: 1.05; }
+  .p { font-size: 21px; color: rgba(255,255,255,.8); margin-top: 22px; max-width: 640px; line-height: 1.55; }
+  .foot { display: flex; gap: 56px; z-index: 2; }
+  .item .l { font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-on-dark-muted); margin-bottom: 6px; }
+  .item .v { font-family: var(--font-display); font-weight: 700; font-size: 19px; color: #fff; }
+  .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--brand); color: #fff; font-weight: 600; font-size: 17px; padding: 14px 26px; border-radius: var(--radius-md); box-shadow: var(--shadow-brand); }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="top"><img src="../assets/logo-appicon.png" alt=""><b>BenYan<span> AI</span></b></div>
+    <div class="mid">
+      <span class="eyebrow">从今天开始落地</span>
+      <h2>把方法论<br>变成你的工作流</h2>
+      <p class="p">课程讲义、案例卡片与工作坊模板将在课后开放下载，欢迎预约企业内训。</p>
+    </div>
+    <div class="foot">
+      <div class="item"><div class="l">企业内训预约</div><div class="v">training@benyan.ai</div></div>
+      <div class="item"><div class="l">资料下载</div><div class="v">benyan.ai/kit</div></div>
+      <div style="flex:1"></div>
+      <span class="cta">预约 1v1 诊断 →</span>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,10 @@
+.git/
+.venv/
+web/
+ui/
+tests/
+docs/
+.pytest_cache/
+.ruff_cache/
+.pyright/
+*.md

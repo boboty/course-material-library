@@ -1,0 +1,45 @@
+<!-- @dsCard group="Slides" viewport="1280x720" name="Agenda Slide" subtitle="Module roadmap" -->
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  html, body { margin: 0; }
+  .slide { width: 1280px; height: 720px; background: var(--paper); font-family: var(--font-sans); padding: 80px 96px; box-sizing: border-box; display: grid; grid-template-columns: 0.9fr 1.4fr; gap: 72px; }
+  .left { display: flex; flex-direction: column; justify-content: space-between; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; letter-spacing: .16em; text-transform: uppercase; color: var(--text-brand); }
+  .eyebrow::before { content: ""; width: 28px; height: 2px; background: var(--brand); }
+  h2 { font-family: var(--font-display); font-weight: 800; font-size: 56px; letter-spacing: -.025em; margin: 20px 0 0; color: var(--text-strong); line-height: 1.06; }
+  .note { font-size: 17px; color: var(--text-muted); line-height: 1.6; max-width: 340px; }
+  .list { display: flex; flex-direction: column; }
+  .row { display: flex; align-items: center; gap: 22px; padding: 22px 0; border-bottom: 1px solid var(--border-subtle); }
+  .row:first-child { padding-top: 0; }
+  .row:last-child { border-bottom: none; }
+  .row .n { font-family: var(--font-mono); font-weight: 600; font-size: 17px; color: var(--text-faint); width: 30px; }
+  .row .ct { flex: 1; }
+  .row h3 { font-family: var(--font-display); font-weight: 700; font-size: 24px; margin: 0 0 3px; color: var(--text-strong); }
+  .row p { font-size: 15px; color: var(--text-muted); margin: 0; }
+  .row .time { font-family: var(--font-mono); font-size: 13px; color: var(--text-faint); }
+  .row.active { background: linear-gradient(90deg, var(--surface-brand-soft), transparent); margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-radius: var(--radius-md); border-bottom: 1px solid transparent; }
+  .row.active .n { color: var(--brand); }
+</style>
+</head>
+<body>
+  <div class="slide">
+    <div class="left">
+      <div>
+        <span class="eyebrow">Day 1 · 课程安排</span>
+        <h2>今天的<br>四个模块</h2>
+      </div>
+      <p class="note">每个模块以「方法论 + 案例 + 工作坊」三段式推进，配套交付模板。</p>
+    </div>
+    <div class="list">
+      <div class="row"><span class="n">01</span><div class="ct"><h3>AI 洞察及应用</h3><p>认知校准与机会地图</p></div><span class="time">09:30</span></div>
+      <div class="row active"><span class="n">02</span><div class="ct"><h3>AI 研发体系建设</h3><p>工程化能力与质量门禁</p></div><span class="time">11:00</span></div>
+      <div class="row"><span class="n">03</span><div class="ct"><h3>企业 AI 应用场景设计</h3><p>场景识别与价值评估</p></div><span class="time">14:00</span></div>
+      <div class="row"><span class="n">04</span><div class="ct"><h3>落地工作坊</h3><p>动手设计你的第一个工作流</p></div><span class="time">15:30</span></div>
+    </div>
+  </div>
+</body>
+</html>
