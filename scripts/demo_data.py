@@ -67,9 +67,26 @@ USAGES = [
 def guard() -> None:
     if settings.app_env.lower() not in {"local", "development"}:
         raise SystemExit("Demo data requires APP_ENV=local or development; production is forbidden")
-    host = urlsplit(settings.database_url).hostname
-    if host not in {"localhost", "127.0.0.1", "::1"}:
-        raise SystemExit("Demo data requires a loopback DATABASE_URL")
+
+
+def target() -> str:
+    """Describe the database without its password, so confirming never prints a secret."""
+    parts = urlsplit(settings.database_url)
+    location = f"{parts.hostname or '?'}:{parts.port}" if parts.port else parts.hostname or "?"
+    return (f"{parts.scheme} host={location} "
+            f"database={parts.path.lstrip('/') or '?'} user={parts.username or '?'}")
+
+
+def confirmed(command: str) -> bool:
+    prompt = (f"Demo data {command} target: {target()}\n"
+              "This clears ALL existing business data in that database, demo rows or not.\n"
+              "Type 'yes' to continue; anything else cancels: ")
+    try:
+        answer = input(prompt)
+    except EOFError:
+        print()
+        answer = ""
+    return answer.strip() == "yes"
 
 
 async def run(command: str) -> None:
@@ -121,5 +138,8 @@ if __name__ == "__main__":
     parser.add_argument("command", choices=["seed", "clean"])
     args = parser.parse_args()
     guard()
+    if not confirmed(args.command):
+        print(f"Demo data {args.command} cancelled; no data changed")
+        raise SystemExit(0)
     asyncio.run(run(args.command))
     print(f"Demo data {args.command} complete")

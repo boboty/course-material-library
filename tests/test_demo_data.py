@@ -14,11 +14,12 @@ from tests.conftest import TEST_DATABASE_URL
 TABLES = (Industry, AudienceType, Customer, Course, Material, Session, Usage)
 
 
-def command(action: str, *, app_env: str = "local", url: str = TEST_DATABASE_URL
-            ) -> subprocess.CompletedProcess[str]:
+def command(action: str, *, app_env: str = "local", url: str = TEST_DATABASE_URL,
+            answer: str = "yes") -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "APP_ENV": app_env, "DATABASE_URL": url}
     return subprocess.run([".venv/bin/python", "-m", "scripts.demo_data", action],
-                          capture_output=True, text=True, env=env, check=False)
+                          capture_output=True, text=True, env=env, check=False,
+                          input=f"{answer}\n")
 
 
 async def table_counts() -> list[int]:
@@ -63,10 +64,30 @@ def test_demo_replaces_all_business_data_and_clean_empties_it() -> None:
         assert asyncio.run(table_counts()) == [0] * len(expected)
 
 
-def test_demo_rejects_production_and_remote_database() -> None:
+def test_demo_rejects_production() -> None:
     production = command("seed", app_env="production")
     assert production.returncode != 0
     assert "production is forbidden" in production.stderr
-    remote = command("clean", url=TEST_DATABASE_URL.replace("localhost", "example.com"))
-    assert remote.returncode != 0
-    assert "loopback DATABASE_URL" in remote.stderr
+
+
+def test_demo_shows_target_and_needs_confirmation_for_any_host() -> None:
+    remote = command("seed", url=TEST_DATABASE_URL.replace("localhost", "db.example.com"),
+                     answer="no")
+    assert remote.returncode == 0, remote.stderr
+    assert "loopback" not in remote.stderr
+    assert "host=db.example.com:5432" in remote.stdout
+    assert "database=benyan_test" in remote.stdout
+    assert "benyan_local" not in remote.stdout
+    assert "clears ALL existing business data" in remote.stdout
+    assert "cancelled; no data changed" in remote.stdout
+
+
+def test_cancelling_changes_no_data() -> None:
+    assert command("clean").returncode == 0
+    asyncio.run(add_preexisting_rows())
+    before = asyncio.run(table_counts())
+    for answer in ("", "no", "y", "YES"):
+        result = command("seed", answer=answer)
+        assert result.returncode == 0, result.stderr
+        assert "cancelled; no data changed" in result.stdout
+        assert asyncio.run(table_counts()) == before

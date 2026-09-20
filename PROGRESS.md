@@ -11,6 +11,7 @@
 - Task 6: PASS
 - Task 7: PASS
 - Task 8: PASS
+- Task 9: 待独立验收
 
 ## 已验收基线
 
@@ -50,7 +51,8 @@
 - 宿主机 `make dev` 保留为热更新开发方式；Compose 的 db 端口仅绑定 `127.0.0.1`，仅用于宿主机开发与验证
 - Task 6 与已验收 WebApp Starter `075526b` 基线同源：`app/main.py`、`Dockerfile`、`docker-compose.yml` 与该基线一致，仅保留三处项目差异（Dockerfile 去掉未使用的 stage 别名、compose 回环发布 db 端口以保留宿主机开发、`.dockerignore` 额外排除 `.env`）
 - SPA fallback 行为沿用已验收基线：HTML 响应不带 `X-Request-ID`，访问日志把 SPA 页面请求记为 404（客户端实际收到 200）。作为基线继承的已知限制记录，不在本 Task 修改
-- Task 7：`make demo-data` 清空本地全部业务数据后灌入固定 Demo 数据；`make demo-clean` 清空本地全部业务数据并保留 schema/migration；两者仅允许 local/development 与回环数据库；不要求与原本地数据共存，不做 ownership 或同名词表复用
+- Task 7：`make demo-data` 清空目标数据库全部业务数据后灌入固定 Demo 数据；`make demo-clean` 清空全部业务数据并保留 schema/migration；不要求与原有数据共存，不做 ownership 或同名词表复用（数据库地址限制已由 Task 9 取消）
+- Task 9 冻结：Demo 数据命令的误操作保护为“执行前展示目标数据库 + 显式确认”，不再限制数据库主机；确认词固定为 `yes`，其他输入、直接回车与 EOF 一律取消且不修改数据；取消以退出码 0 结束；目标展示只输出驱动、主机、端口、库名、用户，不输出密码；保留 `APP_ENV` 必须为 local / development 的判断；`demo-data` 与 `demo-clean` 共用同一保护路径；不提供跳过确认的开关，不新增环境判断、数据库命名规则或权限机制
 - Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
 
 ## 当前已实现
@@ -64,7 +66,8 @@
 - 课后登记页与场次详情入口，移动端 375px 核心操作及保存后读回
 - Task 5 完整候选集分页取全：场次创建页的客户 / 启用课程 / 人群类型、客户表单的行业、词表维护页的行业与人群类型在超过 100 条后仍完整可选 / 可见
 - Task 6 Compose 完整交付：app + PostgreSQL、生产前端随镜像、FastAPI 提供 SPA 与 API、db healthy 后自动 migration、app healthcheck、数据库 volume 持久化；宿主机 `make dev` 保留
-- Task 7 本地 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空全部本地业务数据后灌入固定数据，`make demo-clean` 清空全部本地业务数据；production 与非回环数据库被拒绝；不随应用启动自动灌入
+- Task 7 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空目标数据库全部业务数据后灌入固定数据，`make demo-clean` 清空全部业务数据；`APP_ENV=production` 被拒绝；不随应用启动自动灌入
+- Task 9 Demo 数据导入保护：`make demo-data` / `make demo-clean` 可指向任意主机的数据库；执行前打印目标数据库与清空提示并等待确认，仅 `yes` 执行，其他输入取消且数据零变化
 - Task 8 展示收口：页面 title / `html lang=zh-CN` / BenYan favicon；素材状态、使用效果、使用状态全站统一 Badge tone；场次详情“课后登记”为标题区主要操作、“选择计划素材”为次级操作；课后登记页 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404、列表与详情 loading、词表页错误返回入口修正；素材列表正文两行摘要
 
 ## 当前尚未具备
@@ -77,14 +80,15 @@
 
 ## 当前任务
 
-- **Task 8：v0.1 展示完成度收口 —— PASS**（Task 文件：`tasks/task-008.md`）。
-- 独立验收结论：PASS；accepted baseline 为 `465a510886148d217a780888d0ea31cc10b1605f`。
-- 本轮实际完成范围：Starter 痕迹清理（title、lang、favicon）；`web/src/ui/statusBadge.ts` 统一素材状态 / 使用效果 / 使用状态 Badge tone；场次详情主操作层级调整；课后登记 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404 页与关键字面 loading 状态；词表页错误返回入口移除；素材列表正文两行摘要。
-- Migration / schema：未变，单一 head 仍为 `0003_usages`；未新增或修改 API 契约、后端字段与统计接口。
-- 本轮施工自验：`make check` 通过（后端 121 passed、前端 14 passed，含新增 Badge 映射单测）；`make smoke` 通过；`make e2e` 18 passed（新增 404 / title / lang 与 800px、375px 无横向溢出用例）；另用真实浏览器在 800×900 与 375×812 逐页截图检查素材列表、场次详情、课后登记 sticky 保存区与 404 页，无明显布局问题。
-- 已知风险：sticky 保存区在 Chromium 以外的浏览器表现尚未逐一验证，作为展示层已知风险记录，不在本 Task 扩展处理。
+- **Task 9：调整 Demo 数据导入保护 —— 待独立验收**（Task 文件：`tasks/task-009.md`）。
+- 本轮实际完成范围：`scripts/demo_data.py` 移除 `DATABASE_URL` 必须为回环地址的限制；新增目标数据库展示（驱动、主机、端口、库名、用户，密码不输出）与清空提示；新增显式确认，仅输入 `yes` 才执行，其他输入 / 直接回车 / EOF 取消并以退出码 0 结束、不进入任何数据库事务；`demo-data` 与 `demo-clean` 共用该保护路径；保留 `APP_ENV` 必须为 local / development 的判断。
+- 同步更新：`tests/test_demo_data.py` 确认流与取消零变化用例；README「产品走查数据」章节说明新的保护方式。
+- Migration / schema：未变，单一 head 仍为 `0003_usages`；未修改任何业务代码、API 契约或前端。
+- 本轮施工自验：`make check` 通过（ruff 通过、pyright 0 errors、后端 123 passed、E2E 库门禁脚本通过、前端 14 passed 及 build 成功）；`make smoke` 通过；`git diff --check` 通过；另手工执行 `DATABASE_URL` 指向非回环主机（`db.internal.example.com:6543`）并回车取消，确认目标正确打印、密码未出现在输出中、退出码 0 且未发起数据库连接。
+- 未执行 `make e2e`：本 Task 不涉及页面或用户流程，无前端与 API 变更。
+- 已知事项：本机 `benyan_test` 测试库此前不存在，本轮已创建并 `alembic upgrade head`；这是本地验证环境准备，不属于代码变更。
 - 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 不开始下一 Task；Task 8 已验收，等待后续任务指令。
+- Task 9 等待独立验收；验收通过后更新 `accepted baseline`。
