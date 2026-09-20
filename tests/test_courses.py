@@ -45,6 +45,7 @@ def test_course_list_search_pagination_and_not_found(client: TestClient) -> None
     result = client.get("/api/v1/courses", params={"q": marker, "page_size": 1})
     assert result.json()["total"] == 2
     assert len(result.json()["items"]) == 1
+    assert client.get("/api/v1/courses?page_size=101").status_code == 422
 
     aliased = create_course(client)
     alias = f"别名{marker}"

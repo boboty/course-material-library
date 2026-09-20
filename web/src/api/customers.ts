@@ -1,4 +1,4 @@
-import { jsonRequest, pageQuery, request, type Page, type Vocabulary } from './client'
+import { fetchAllPages, jsonRequest, pageQuery, request, type Page, type Vocabulary } from './client'
 
 export type Customer = {
   id: string
@@ -24,10 +24,9 @@ export async function listCustomers(q = '', page = 1, pageSize = 20): Promise<Pa
   return request(`/api/v1/customers?${pageQuery({ q, page, page_size: pageSize })}`)
 }
 
-/** 场次表单的客户下拉需要完整候选集，V1 在上限 100 条内一次性加载。 */
+/** 场次表单的客户下拉需要完整候选集，按后端上限分页取全。 */
 export async function listAllCustomers(): Promise<Customer[]> {
-  const result = await listCustomers('', 1, 100)
-  return result.items
+  return fetchAllPages((page, pageSize) => listCustomers('', page, pageSize), customer => customer.id)
 }
 
 export async function getCustomer(id: string): Promise<Customer> {

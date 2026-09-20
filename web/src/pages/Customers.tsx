@@ -5,7 +5,7 @@ import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError, type Page } from '../api/client'
 import { createCustomer, getCustomer, listCustomers, updateCustomer, type Customer, type CustomerInput } from '../api/customers'
-import { listIndustries, type Vocabulary } from '../api/vocabularies'
+import { listAllIndustries, type Vocabulary } from '../api/vocabularies'
 
 const emptyForm: CustomerInput = { name: '', short_name: '', industry_id: null, group_name: '', notes: '' }
 
@@ -48,7 +48,7 @@ export function CustomerForm() {
   const [saving, setSaving] = useState(false)
   useEffect(() => {
     let active = true
-    listIndustries().then(data => { if (active) setIndustries(data.items) }).catch(() => {})
+    listAllIndustries().then(items => { if (active) setIndustries(items) }).catch(() => {})
     if (id) {
       setLoading(true)
       getCustomer(id).then(customer => {

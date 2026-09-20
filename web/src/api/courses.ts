@@ -1,4 +1,4 @@
-import { jsonRequest, pageQuery, request, type Page } from './client'
+import { fetchAllPages, jsonRequest, pageQuery, request, type Page } from './client'
 
 export const courseStatuses = ['启用', '停用'] as const
 
@@ -31,9 +31,9 @@ export async function updateCourse(id: string, payload: CourseInput): Promise<Co
   return request(`/api/v1/courses/${encodeURIComponent(id)}`, jsonRequest('PUT', payload))
 }
 
+/** 场次表单的主课程下拉需要完整候选集，按后端上限分页取全。 */
 export async function listEnabledCourses(): Promise<Course[]> {
-  const result = await request<Page<Course>>(`/api/v1/courses?${pageQuery({
-    status: '启用', page_size: 100,
-  })}`)
-  return result.items
+  return fetchAllPages((page, pageSize) => request<Page<Course>>(`/api/v1/courses?${pageQuery({
+    status: '启用', page, page_size: pageSize,
+  })}`), course => course.id)
 }

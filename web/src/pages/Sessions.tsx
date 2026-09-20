@@ -9,7 +9,7 @@ import { getCourse, listEnabledCourses, type Course } from '../api/courses'
 import { listAllCustomers, type Customer } from '../api/customers'
 import { createSession, getSession, listSessions, sessionDurations, type SessionDuration, type TeachingSession } from '../api/sessions'
 import { listUsages, removePlannedMaterial, type Usage } from '../api/usages'
-import { listAudienceTypes, type Vocabulary } from '../api/vocabularies'
+import { listAllAudienceTypes, type Vocabulary } from '../api/vocabularies'
 
 function today(): string {
   const now = new Date()
@@ -59,7 +59,7 @@ export function SessionCreate() {
     let active = true
     listAllCustomers().then(items => { if (active) setCustomers(items) }).catch(() => {})
     listEnabledCourses().then(items => { if (active) setCourses(items) }).catch(() => {})
-    listAudienceTypes().then(data => { if (active) setAudienceTypes(data.items) }).catch(() => {})
+    listAllAudienceTypes().then(items => { if (active) setAudienceTypes(items) }).catch(() => {})
     return () => { active = false }
   }, [])
 

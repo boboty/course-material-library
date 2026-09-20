@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError } from '../api/client'
-import { createAudienceType, createIndustry, listAudienceTypes, listIndustries } from '../api/vocabularies'
+import { createAudienceType, createIndustry, listAllAudienceTypes, listAllIndustries } from '../api/vocabularies'
 
 type Kind = 'industry' | 'audience'
 
@@ -23,14 +23,23 @@ const labels: Record<Kind, { title: string; lead: string; field: string; button:
   },
 }
 
-const loaders: Record<Kind, () => Promise<{ items: { id: string; name: string }[] }>> = {
-  industry: listIndustries,
-  audience: listAudienceTypes,
+const loaders: Record<Kind, () => Promise<{ id: string; name: string }[]>> = {
+  industry: listAllIndustries,
+  audience: listAllAudienceTypes,
+}
+
+type VocabularyItem = { id: string; name: string }
+
+/** 词表只有新增、没有删除，按 id 合并即可：慢加载不会覆盖刚新增的条目。 */
+function mergeById(primary: VocabularyItem[], extra: VocabularyItem[]): VocabularyItem[] {
+  const merged = new Map(primary.map(item => [item.id, item]))
+  for (const item of extra) if (!merged.has(item.id)) merged.set(item.id, item)
+  return [...merged.values()].sort((a, b) => a.name.localeCompare(b.name))
 }
 
 function VocabularySection({ kind }: { kind: Kind }) {
   const copy = labels[kind]
-  const [items, setItems] = useState<{ id: string; name: string }[]>([])
+  const [items, setItems] = useState<VocabularyItem[]>([])
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -38,7 +47,7 @@ function VocabularySection({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     let active = true
-    loaders[kind]().then(data => { if (active) setItems(data.items) })
+    loaders[kind]().then(loaded => { if (active) setItems(current => mergeById(loaded, current)) })
       .catch(() => { if (active) setError('词表加载失败') })
     return () => { active = false }
   }, [kind])
@@ -47,7 +56,7 @@ function VocabularySection({ kind }: { kind: Kind }) {
     event.preventDefault(); setError(''); setSaving(true)
     try {
       const created = kind === 'industry' ? await createIndustry(name) : await createAudienceType(name)
-      setItems(current => [...current, { id: created.id, name: created.name }].sort((a, b) => a.name.localeCompare(b.name)))
+      setItems(current => mergeById(current, [{ id: created.id, name: created.name }]))
       setName('')
     } catch (reason) {
       setError(reason instanceof ApiError ? reason.message : '保存失败')

@@ -155,6 +155,25 @@ def test_vocabularies_are_maintainable_and_unique(client: TestClient) -> None:
     assert client.post("/api/v1/audience-types", json={"name": "x", "extra": 1}).status_code == 422
 
 
+def test_vocabulary_pagination_contract_is_unchanged(client: TestClient) -> None:
+    """词表分页上限保持 100：前端按上限逐页取全，后端契约不变。"""
+    marker = uuid4().hex[:10]
+    for index in range(2):
+        create_industry(client, name=f"虚构分页行业 {marker} {index}")
+
+    first = client.get("/api/v1/industries",
+                       params={"q": marker, "page": 1, "page_size": 1}).json()
+    assert (first["page"], first["page_size"], first["total"]) == (1, 1, 2)
+    assert len(first["items"]) == 1
+    second = client.get("/api/v1/industries",
+                        params={"q": marker, "page": 2, "page_size": 1}).json()
+    assert len(second["items"]) == 1
+    assert first["items"][0]["id"] != second["items"][0]["id"]
+
+    assert client.get("/api/v1/industries?page_size=101").status_code == 422
+    assert client.get("/api/v1/audience-types?page_size=101").status_code == 422
+
+
 def test_customer_industry_survives_and_is_readable_after_reopen(client: TestClient) -> None:
     industry = create_industry(client, name=unique_name("虚构行业"))
     customer = create_customer(client, industry_id=industry["id"])

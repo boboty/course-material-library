@@ -36,3 +36,24 @@ export function pageQuery(params: Record<string, string | number>): string {
   for (const [key, value] of Object.entries(params)) search.set(key, String(value))
   return search.toString()
 }
+
+/** 后端分页接口的 page_size 上限，分页取全时按此上限请求。 */
+export const MAX_PAGE_SIZE = 100
+
+/**
+ * 需要完整候选集时使用：按后端允许的最大 page_size 逐页请求，直到取满 total。
+ * 调用方只提供“第几页”的分页请求函数，避免每个页面各写一套循环。
+ * 按 keyOf（实体 id）去重：offset 分页在有并发新增时可能让同一条记录跨页重复返回。
+ */
+export async function fetchAllPages<T>(
+  loadPage: (page: number, pageSize: number) => Promise<Page<T>>,
+  keyOf: (item: T) => string,
+): Promise<T[]> {
+  const found = new Map<string, T>()
+  for (let page = 1; ; page += 1) {
+    const result = await loadPage(page, MAX_PAGE_SIZE)
+    for (const item of result.items) found.set(keyOf(item), item)
+    // 空页兜底，避免 total 与实际数据不一致时出现死循环
+    if (result.items.length === 0 || found.size >= result.total) return [...found.values()]
+  }
+}
