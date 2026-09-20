@@ -11,7 +11,7 @@
 - Task 6: PASS
 - Task 7: PASS
 - Task 8: PASS
-- Task 9: 待独立验收
+- Task 9: PASS
 
 ## 已验收基线
 
@@ -21,11 +21,13 @@
 - Task 6 accepted baseline: 32deec0e5f8fd8776785d046cdb3be1310ce735f
 - Task 7 accepted baseline: cdfd3d8ef8074997601cde7658a9fc0f129c55cf
 - Task 8 accepted baseline: 465a510886148d217a780888d0ea31cc10b1605f
+- Task 9 accepted baseline: e4c67874a979ebfea28bb6031c8ae2e6f49814d4
 - Migration head: 0003_usages（单一 head）
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
 - Task 5 已通过独立验收
 - Task 6 独立验收时：空 volume `docker compose up -d --build` 后 db/app 均 healthy、自动迁移至 `0003_usages`、`down` / `up -d` 后数据读回一致；后端 119 passed、前端 11 passed、E2E 14 passed、`make smoke` 通过
+- Task 9 独立验收时：`make check` 通过（后端 123 passed、前端 14 passed）、`make smoke` 通过、`git diff --check` 通过；非回环数据库不再被拒绝，`demo-data` 与 `demo-clean` 均在执行前展示目标并要求确认，取消后数据零变化；未发现 schema / migration / API 契约变更
 - Task 8 独立验收时：`make check` 通过（后端 121 passed、前端 14 passed）、`make smoke` 通过、E2E 18 passed（含 375px 布局与长页面保存按钮可达性）、`git diff --check` 通过；未发现 schema / migration / API 契约变更
 
 ## 已冻结判断
@@ -80,15 +82,16 @@
 
 ## 当前任务
 
-- **Task 9：调整 Demo 数据导入保护 —— 待独立验收**（Task 文件：`tasks/task-009.md`）。
+- **Task 9：调整 Demo 数据导入保护 —— PASS**（Task 文件：`tasks/task-009.md`）。
+- 独立验收结论：PASS；accepted baseline 为 `e4c67874a979ebfea28bb6031c8ae2e6f49814d4`。
 - 本轮实际完成范围：`scripts/demo_data.py` 移除 `DATABASE_URL` 必须为回环地址的限制；新增目标数据库展示（驱动、主机、端口、库名、用户，密码不输出）与清空提示；新增显式确认，仅输入 `yes` 才执行，其他输入 / 直接回车 / EOF 取消并以退出码 0 结束、不进入任何数据库事务；`demo-data` 与 `demo-clean` 共用该保护路径；保留 `APP_ENV` 必须为 local / development 的判断。
 - 同步更新：`tests/test_demo_data.py` 确认流与取消零变化用例；README「产品走查数据」章节说明新的保护方式。
 - Migration / schema：未变，单一 head 仍为 `0003_usages`；未修改任何业务代码、API 契约或前端。
-- 本轮施工自验：`make check` 通过（ruff 通过、pyright 0 errors、后端 123 passed、E2E 库门禁脚本通过、前端 14 passed 及 build 成功）；`make smoke` 通过；`git diff --check` 通过；另手工执行 `DATABASE_URL` 指向非回环主机（`db.internal.example.com:6543`）并回车取消，确认目标正确打印、密码未出现在输出中、退出码 0 且未发起数据库连接。
+- 验证：`make check` 通过（ruff 通过、pyright 0 errors、后端 123 passed、E2E 库门禁脚本通过、前端 14 passed 及 build 成功）；`make smoke` 通过；`git diff --check` 通过；另手工执行 `DATABASE_URL` 指向非回环主机并回车取消，确认目标正确打印、密码未出现在输出中、退出码 0 且未发起数据库连接。
 - 未执行 `make e2e`：本 Task 不涉及页面或用户流程，无前端与 API 变更。
-- 已知事项：本机 `benyan_test` 测试库此前不存在，本轮已创建并 `alembic upgrade head`；这是本地验证环境准备，不属于代码变更。
+- 已知风险：确认提示依赖交互式 stdin；在无 stdin 的自动化环境中命令会按 EOF 取消而不执行，作为当前保护方式的已知行为记录。
 - 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- Task 9 等待独立验收；验收通过后更新 `accepted baseline`。
+- 不开始下一 Task；Task 9 已验收，等待后续任务指令。
