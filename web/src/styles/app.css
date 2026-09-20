@@ -51,4 +51,8 @@
 .secondary-link { display: inline-flex; padding: 8px 16px; border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-body); }
 .secondary-link:hover { text-decoration: none; border-color: var(--brand); }
 .secondary-link[aria-disabled='true'] { pointer-events: none; opacity: 0.5; }
+.planned-list { display: grid; gap: var(--space-3); list-style: none; padding: 0; margin: var(--space-4) 0 0; }
+.planned-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--border-subtle); padding-bottom: var(--space-3); }
+.planned-item:last-child { border-bottom: none; padding-bottom: 0; }
+.detail-body > div > h2 { font-size: var(--text-lg); }
 @media (max-width: 640px) { .by-container { padding-inline: var(--space-4); } .page-header { flex-direction: column; } .record-list { grid-template-columns: 1fr; } }

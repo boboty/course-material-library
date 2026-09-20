@@ -8,6 +8,7 @@ import { ApiError, type Page } from '../api/client'
 import { getCourse, listEnabledCourses, type Course } from '../api/courses'
 import { listAllCustomers, type Customer } from '../api/customers'
 import { createSession, getSession, listSessions, sessionDurations, type SessionDuration, type TeachingSession } from '../api/sessions'
+import { listUsages, removePlannedMaterial, type Usage } from '../api/usages'
 import { listAudienceTypes, type Vocabulary } from '../api/vocabularies'
 
 function today(): string {
@@ -108,6 +109,7 @@ export function SessionDetail() {
   const { id = '' } = useParams()
   const [session, setSession] = useState<TeachingSession | null>(null)
   const [course, setCourse] = useState<Course | null>(null)
+  const [usages, setUsages] = useState<Usage[]>([])
   const [error, setError] = useState('')
   useEffect(() => {
     let active = true
@@ -116,8 +118,21 @@ export function SessionDetail() {
       setSession(data)
       setCourse(await getCourse(data.course.id).catch(() => null))
     }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : '场次加载失败') })
+    listUsages(id).then(data => { if (active) setUsages(data) })
+      .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : '计划素材加载失败') })
     return () => { active = false }
   }, [id])
+
+  async function remove(usage: Usage) {
+    setError('')
+    try {
+      await removePlannedMaterial(id, usage.id)
+      setUsages(current => current.filter(item => item.id !== usage.id))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '撤销计划失败')
+    }
+  }
+
   return <main className="material-page by-container"><Link to="/sessions">← 返回场次列表</Link>
     {error && <Callout tone="risk">{error}</Callout>}
     {session && <><div className="by-eyebrow by-eyebrow--tick">场次详情</div>
@@ -135,7 +150,19 @@ export function SessionDetail() {
           <dt>备注</dt><dd>{session.notes || '未填写'}</dd>
         </dl>
       </Card>
-      <Card className="detail-body"><h2>计划素材</h2><p>素材计划与使用记录在后续任务中提供。</p></Card>
+      <Card className="detail-body">
+        <div className="material-card-top"><h2>计划素材（{usages.length}）</h2><Link className="primary-link" to={`/sessions/${id}/materials`}>选择计划素材</Link></div>
+        {usages.length === 0 && <p>还没有计划素材。</p>}
+        {usages.length > 0 && <ul className="planned-list">
+          {usages.map(usage => <li key={usage.id} className="planned-item">
+            <div>
+              <Link to={`/materials/${usage.material.id}`}>{usage.material.title}</Link>
+              <span className="record-meta"> · {usage.material.type || '未填写类型'} · {usage.material.status} · {usage.status} / {usage.effect}</span>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => remove(usage)}>撤销计划</Button>
+          </li>)}
+        </ul>}
+      </Card>
     </>}
   </main>
 }
