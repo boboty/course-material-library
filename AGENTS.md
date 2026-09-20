@@ -153,7 +153,7 @@ Task 使用以下状态：
 * RC 修复并完成自验：标记为 `待复验`；
 * 复验通过：标记为 `PASS`，更新新的 `accepted baseline`。
 
-`accepted baseline` 只表示已经通过独立验收的提交或状态。
+`accepted baseline` 只表示已经通过独立验收的代码提交。
 
 不要使用 `HEAD` 作为可信基线，因为后续文档提交或状态更新会使它立即失效。
 
