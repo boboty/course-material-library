@@ -26,10 +26,14 @@ async def create_material(payload: MaterialCreate, session: DbSession) -> Materi
 @router.get("", response_model=MaterialPage)
 async def list_materials(session: DbSession,
                          q: Annotated[str | None, Query(max_length=255)] = None,
+                         title: Annotated[str | None, Query(max_length=255)] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
-    predicate = Material.title.ilike(f"%{q.strip()}%") if q and q.strip() else None
-    where = [predicate] if predicate is not None else []
+    where = []
+    if q and q.strip():
+        where.append(Material.title.ilike(f"%{q.strip()}%"))
+    if title is not None:
+        where.append(Material.title == title)
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))
     rows = await session.scalars(select(Material).where(*where)
                                  .order_by(Material.created_at.desc(), Material.id.desc())

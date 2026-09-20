@@ -60,6 +60,27 @@ def test_duplicate_title_is_allowed(client: TestClient) -> None:
     assert client.get("/api/v1/materials", params={"q": payload["title"]}).json()["total"] == 2
 
 
+def test_exact_title_finds_match_beyond_fuzzy_first_page(client: TestClient) -> None:
+    title = f"虚构同标题 {uuid4().hex}"
+    payload = {"title": title, "type": "故事", "body": "虚构正文"}
+    first = client.post("/api/v1/materials", json=payload)
+    assert first.status_code == 201
+    for number in range(21):
+        response = client.post("/api/v1/materials", json={
+            **payload, "title": f"{title} 扩展 {number}",
+        })
+        assert response.status_code == 201
+
+    fuzzy = client.get("/api/v1/materials", params={"q": title})
+    assert fuzzy.json()["total"] == 22
+    assert all(item["id"] != first.json()["id"] for item in fuzzy.json()["items"])
+
+    exact = client.get("/api/v1/materials", params={"title": title, "page_size": 1})
+    assert exact.status_code == 200
+    assert exact.json()["total"] == 1
+    assert exact.json()["items"][0]["id"] == first.json()["id"]
+
+
 @pytest.mark.parametrize("payload", [
     {"title": "仅标题"},
     {"title": "标题", "body": "正文"},

@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, getMaterial, listMaterials, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, listMaterials, type Material, type MaterialPage } from '../api/materials'
 
 const types = ['故事', '案例', 'Demo', '金句', '段子', '行业素材']
 
@@ -38,13 +38,14 @@ export function MaterialCreate() {
   const [title, setTitle] = useState('')
   const [type, setType] = useState('')
   const [body, setBody] = useState('')
-  const [duplicates, setDuplicates] = useState<Material[]>([])
+  const [duplicate, setDuplicate] = useState<Material | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
-    if (!title.trim()) { setDuplicates([]); return }
+    if (!title.trim()) { setDuplicate(null); return }
     let active = true
-    const timer = setTimeout(() => { listMaterials(title.trim()).then(data => { if (active) setDuplicates(data.items.filter(item => item.title === title.trim())) }).catch(() => { if (active) setDuplicates([]) }) }, 250)
+    setDuplicate(null)
+    const timer = setTimeout(() => { findExactTitle(title.trim()).then(item => { if (active) setDuplicate(item) }).catch(() => { if (active) setDuplicate(null) }) }, 250)
     return () => { active = false; clearTimeout(timer) }
   }, [title])
   async function submit(event: FormEvent) {
@@ -55,7 +56,7 @@ export function MaterialCreate() {
   }
   return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link><div className="by-eyebrow by-eyebrow--tick">快速录入</div><h1>记录一条素材</h1><p className="by-lead">只需标题、类型和正文。保存后为草稿。</p>
     <Card accent className="form-card"><form onSubmit={submit} className="material-form"><label>标题<input required maxLength={255} value={title} onChange={event => setTitle(event.target.value)} /></label>
-      {duplicates.length > 0 && <Callout tone="warning">已有同标题素材，仍可继续保存。<Link to={`/materials/${duplicates[0].id}`}>查看已有素材</Link></Callout>}
+      {duplicate && <Callout tone="warning">已有同标题素材，仍可继续保存。<Link to={`/materials/${duplicate.id}`}>查看已有素材</Link></Callout>}
       <label>类型<select required value={type} onChange={event => setType(event.target.value)}><option value="">请选择类型</option>{types.map(item => <option key={item}>{item}</option>)}</select></label>
       <label>正文<textarea required rows={8} value={body} onChange={event => setBody(event.target.value)} /></label>
       {error && <Callout tone="risk">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存草稿'}</Button></form></Card>
