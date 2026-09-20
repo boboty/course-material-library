@@ -5,15 +5,23 @@
 - V1
 - Task 1: PASS
 - Task 2: PASS
-- Task 3: 待独立验收
+- Task 3: RC
 
 ## 已验收基线
 
 - Task 2 accepted baseline: 320a543
-- Migration head: 0003_usages
-- CI: 未在本轮运行（本轮实际运行 `make check`；CI 沿用仓库 workflow）
-- Backend tests: 107 passed
-- E2E: 9 passed
+- Migration head: 0002_customers_courses_sessions
+- CI: PASS
+- Backend tests: 84 passed
+- E2E: 7 passed
+
+## 当前 Task 3 候选状态
+
+- Candidate commit: 07deac0
+- Working migration head: 0003_usages
+- 施工自验记录：make check 107 passed；make smoke PASS；make e2e 9 passed
+- GitHub CI：独立验收时未取得该 candidate 的 CI 结果
+- 独立验收结论：RC，accepted baseline 不变
 
 ## 已冻结判断
 
@@ -29,8 +37,9 @@
 - Task 3 新增的使用记录在备课阶段固定为：计划 / 未评
 - 备课阶段撤销计划 = 删除该使用记录；“未用”属于课后确认事实，不在 Task 3 产生
 - 使用记录的 POST 只接收 material_id，状态与效果只能由服务端产生
+- Task 3 的撤销接口只能删除 status=计划 的使用记录，不得删除已用 / 未用事实
 
-## 当前已具备
+## 当前已实现（Task 3 candidate）
 
 - 素材快速录入
 - 素材标题搜索
@@ -39,11 +48,14 @@
 - 课程维护
 - 行业与人群类型维护
 - 场次创建、列表与详情
-- 场次计划素材：搜索全库素材、加入计划、撤销计划、场次详情读回
 - 独立 E2E 数据库及安全门禁
+- 使用记录实体与 migration 0003
+- 场次计划素材：搜索、加入、读回、撤销
+- GET / POST / DELETE 场次 usages API
 
 ## 当前尚未具备
 
+- Task 3 独立验收通过
 - 课后登记
 - 已用 / 未用状态转换
 - 好 / 差效果登记
@@ -58,30 +70,28 @@
 
 ## 当前任务
 
-- Task 3: 待独立验收
+- Task 3: RC
 - Task 文件：`tasks/task-003.md`
 - 目标：完成“已有场次 → 搜索素材 → 加入计划 → 持久化使用记录 → 场次详情读回 → 可撤销计划”的备课垂直切片
-- 本轮实际完成范围：使用记录实体与 migration 0003；`GET/POST/DELETE /api/v1/sessions/{session_id}/usages`；场次详情计划素材区；素材选择页（搜索 / 加入 / 已加入状态 / 撤销）
-- migration / schema 状态：`0003_usages` 为唯一 head；空库 upgrade head 与从 `0002_customers_courses_sessions` upgrade head 均已实测；`0003 → 0002` downgrade 可逆
-- 本轮未进入：课后登记、已用 / 未用转换、好 / 差登记、现场反应、素材家族、重复提醒、素材与课程多对多、Markdown 导入
+- Candidate：`07deac0`
 
-## 本轮验证记录
+## RC 待修项
 
-- `make check`：ruff `All checks passed!`；pyright `0 errors`；pytest `107 passed`；`e2e db guard verification PASS`；web lint / typecheck 通过；Vitest `3 passed`；Vite build 成功
-- `make smoke`：health 200 + X-Request-ID PASS；not-found 404 error envelope 与 request id 一致 PASS
-- `make e2e`：`9 passed`（Task 1 三条 + Task 2 四条 + Task 3 两条），连续两次均为 9 passed
-- Alembic：空库 `upgrade head` 得到 9 张表；从 0002 `upgrade head` 只新增 `usages`
-- Task 1 / Task 2 回归：全部通过，未修改其验收语义
-- 真实服务实测：新场次 usages 为空；加入素材返回 201 且为“计划 / 未评 / reaction null”；重复加入 409 CONFLICT；携带 status/effect 的 POST 返回 422；撤销返回 204 且记录消失（再次删除 404）；未知场次 / 未知素材 / 错误归属删除均 404
+1. **撤销计划 API 未锁定“计划”状态**
+   - 当前 DELETE 仅按 `usage_id + session_id` 删除。
+   - 数据模型已经允许 `已用 / 未用`，因此该接口实际上也能删除未来的课后事实。
+   - 修复要求：DELETE 只能删除 `status='计划'` 的使用记录；对非计划记录不得删除。
+   - 增加独立测试：直接构造 / 修改为“已用”或“未用”的记录后调用 DELETE，确认记录仍存在且接口明确失败。
 
-## 已知风险或待验收事项
+2. **数据库 CHECK 约束测试存在假绿，且缺少 reaction 空白验证**
+   - 当前非法 status / effect 测试同时使用不存在的 session/material UUID，因此即使对应 CHECK 被删除，也可能仅因 FK 失败而通过。
+   - 施工报告声称覆盖空白 reaction，但当前测试未实际验证 `reaction IS NULL OR length(btrim(reaction)) > 0`。
+   - 修复要求：先创建真实 session/material，再分别、单独触发非法 status、非法 effect、空白 reaction；FK 约束另行独立测试，使每个测试都能证明目标约束本身。
 
-- 同一素材并发双击加入依赖数据库唯一约束兜底（服务端会转成 409）；前端通过点击后立即替换为“已加入”徽标避免重复提交
-- E2E 数据库跨次累积虚构数据，未加入清理逻辑
-- `docs/architecture.md` 与 `docs/verification.md` 尚未补充 Task 3 的实体与验证说明
+## 复验要求
 
-## 下一步
-
-- 独立验收 Task 3：复查使用记录语义、撤销计划即删除、以及未提前引入 Task 4 能力
-- 验收通过后标记 Task 3 为 `PASS` 并更新 accepted baseline；发现问题则标记 `RC` 并记录待修项
-- Task 4 才进入课后登记与状态 / 效果转换
+- 只修上述 RC，不扩大 Task 3 范围，不进入 Task 4。
+- 修复后更新本文件为 `Task 3: 待复验`。
+- 实际运行 `make check`、`make smoke`、`make e2e`。
+- 保持 0003 为单一 migration head，并确认 migration 无漂移。
+- 独立复验通过后才可将 Task 3 标记为 PASS 并更新 accepted baseline。
