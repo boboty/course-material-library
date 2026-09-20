@@ -6,8 +6,30 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-benyan_local}
       POSTGRES_DB: ${POSTGRES_DB:-benyan}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      LOG_JSON: "true"
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-benyan}:${POSTGRES_PASSWORD:-benyan_local}@db:5432/${POSTGRES_DB:-benyan}
+    ports:
+      - "${WEB_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 volumes:
   postgres_data:

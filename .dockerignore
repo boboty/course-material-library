@@ -1,7 +1,13 @@
 .git/
+.env
+.env.*
 .venv/
-web/
-ui/
+ui/*
+!ui/design-system/
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
 tests/
 docs/
 .pytest_cache/
