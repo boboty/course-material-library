@@ -1,1 +1,3 @@
-# Import model modules here once the project adds them, so Alembic sees their metadata.
+from app.models.material import Material
+
+__all__ = ["Material"]

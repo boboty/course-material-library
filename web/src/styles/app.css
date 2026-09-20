@@ -5,3 +5,29 @@
 .status-card h2 { font-size: var(--text-xl); }
 .status-card p { margin-block: var(--space-6); color: var(--text-body); }
 .status-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.material-page { padding-block: var(--space-8); }
+.material-page > .by-eyebrow { margin-top: var(--space-7); }
+.material-page h1 { margin-block: var(--space-3); }
+.page-header, .detail-title, .material-card-top { display: flex; align-items: start; justify-content: space-between; gap: var(--space-4); }
+.page-header { margin-bottom: var(--space-8); }
+.primary-link { display: inline-flex; padding: 10px 20px; background: var(--brand); color: var(--text-on-brand); border-radius: var(--radius-md); font-weight: var(--fw-semibold); white-space: nowrap; }
+.primary-link:hover { color: var(--text-on-brand); }
+.search-row { display: flex; align-items: end; gap: var(--space-3); flex-wrap: wrap; }
+.search-row label { flex-basis: 100%; font-weight: var(--fw-semibold); }
+.search-row input { flex: 1; min-width: 180px; }
+.material-page input, .material-page select, .material-page textarea { width: 100%; border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 10px 12px; font: inherit; background: var(--surface-card); color: var(--text-body); }
+.material-page input:focus-visible, .material-page select:focus-visible, .material-page textarea:focus-visible { outline: none; box-shadow: var(--ring-brand); }
+.result-count { margin-block: var(--space-6) var(--space-4); color: var(--text-muted); }
+.material-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--space-4); }
+.material-link { color: inherit; }
+.material-link:hover { text-decoration: none; }
+.material-link h2 { font-size: var(--text-lg); }
+.material-link p { margin-top: var(--space-4); color: var(--text-muted); }
+.pager { display: flex; align-items: center; gap: var(--space-4); margin-top: var(--space-7); }
+.form-card, .detail-body { max-width: var(--container-md); margin-top: var(--space-7); }
+.material-form { display: grid; gap: var(--space-5); }
+.material-form label { display: grid; gap: var(--space-2); font-weight: var(--fw-semibold); }
+.material-form textarea { resize: vertical; }
+.detail-body h2 { font-size: var(--text-lg); margin-bottom: var(--space-4); }
+.detail-body p { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 640px) { .by-container { padding-inline: var(--space-4); } .page-header { flex-direction: column; } }

@@ -3,6 +3,23 @@ on: [push, pull_request]
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: benyan
+          POSTGRES_PASSWORD: benyan_local
+          POSTGRES_DB: benyan_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U benyan -d benyan_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://benyan:benyan_local@localhost:5432/benyan_test
+      TEST_DATABASE_URL: postgresql+asyncpg://benyan:benyan_local@localhost:5432/benyan_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,6 +32,7 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: make setup
       - run: cd web && npx playwright install --with-deps chromium
+      - run: .venv/bin/alembic upgrade head
       - run: make check
       - run: make smoke
       - run: make e2e
