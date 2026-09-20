@@ -124,6 +124,13 @@ UI 必须复用 `ui/design-system/` 的 tokens、组件和规则，不另造品�
 
 ## Task 执行与项目状态
 
+### 角色职责
+
+角色按当前任务职责区分，与具体 Agent 或模型无关：
+
+* 执行角色：负责施工和所有工作区写入，包括 `PROGRESS.md`、commit 和 push；
+* 独立验收角色：只负责读取、验证和裁决，不得修改工作区、commit 或 push；验收结论由执行角色写入 `PROGRESS.md`。
+
 ### PROGRESS.md
 
 `PROGRESS.md` 是项目当前状态快照，不是历史日志。
