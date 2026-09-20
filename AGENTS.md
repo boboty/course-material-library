@@ -131,6 +131,10 @@ UI 必须复用 `ui/design-system/` 的 tokens、组件和规则，不另造品�
 * 执行角色：负责施工和所有工作区写入，包括 `PROGRESS.md`、commit 和 push；
 * 独立验收角色：只负责读取、验证和裁决，不得修改工作区、commit 或 push；验收结论由执行角色写入 `PROGRESS.md`。
 
+### 新 Task 启动门禁
+
+如果用户要求开始一个新的 Task，而对应 Task 文件尚不存在，执行角色必须先创建 Task 文件，并将 `PROGRESS.md` 更新为该 Task `进行中`，然后才能修改业务代码。不得直接把聊天指令当作正式 Task 定义开工。若信息不足以形成 Task 文件，应停止并指出缺失内容。该规则仅约束以后新 Task，不追溯当前已经施工中的 Task 8。
+
 ### PROGRESS.md
 
 `PROGRESS.md` 是项目当前状态快照，不是历史日志。
