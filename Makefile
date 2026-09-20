@@ -1,5 +1,5 @@
 VENV_BIN := .venv/bin
-.PHONY: setup dev check smoke e2e
+.PHONY: setup dev check smoke e2e demo-data demo-clean
 setup:
 	python3.12 -m venv .venv
 	$(VENV_BIN)/pip install -e '.[dev]'
@@ -20,3 +20,9 @@ smoke:
 
 e2e:
 	./scripts/e2e.sh
+
+demo-data:
+	$(VENV_BIN)/python -m scripts.demo_data seed
+
+demo-clean:
+	$(VENV_BIN)/python -m scripts.demo_data clean

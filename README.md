@@ -28,3 +28,16 @@ make dev
 开发页面在 http://localhost:5173/，FastAPI 在 http://localhost:8000/。Vite 使用相对 `/api/v1/*` 请求并代理到后端，可用 `VITE_BACKEND_ORIGIN` 覆盖代理目标。开发模式与 Compose 的 app 服务不能同时占用 8000 端口。
 
 运行 `make check` 检查后端与前端，`make smoke` 检查 API，`make e2e` 经 Vite 和真实后端运行 Playwright。E2E 使用独立数据库，详见 `docs/verification.md`。
+
+## 本地产品走查数据
+
+确保本机 PostgreSQL 已启动并完成迁移（例如先运行 `docker compose up -d db`，再运行 `.venv/bin/alembic upgrade head`），然后执行：
+
+```bash
+make demo-data
+make demo-clean
+```
+
+**两个命令都会清空本地全部业务数据，包括非 Demo 数据。** `make demo-data` 清空后灌入固定虚构数据集；`make demo-clean` 清空后保留 schema 和 migration，系统恢复为空库，可开始正常使用。请只在可丢弃本地数据的环境运行。两条命令可重复执行，清理按外键顺序在事务内完成。
+
+Demo 包含虚构素材各类型与状态、客户和集团、启用与停用课程、多人群场次，以及计划、已用、未用、未评、好、差的使用记录。命令只允许 `APP_ENV=local` 或 `development` 且数据库地址位于本机回环接口；应用启动不会自动灌入。Compose 的 app 服务使用 `APP_ENV=production`，不能运行 Demo 命令。

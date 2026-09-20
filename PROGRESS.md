@@ -9,6 +9,7 @@
 - Task 4: PASS
 - Task 5: PASS
 - Task 6: PASS
+- Task 7: 待复验
 
 ## 已验收基线
 
@@ -45,6 +46,7 @@
 - 宿主机 `make dev` 保留为热更新开发方式；Compose 的 db 端口仅绑定 `127.0.0.1`，仅用于宿主机开发与验证
 - Task 6 与已验收 WebApp Starter `075526b` 基线同源：`app/main.py`、`Dockerfile`、`docker-compose.yml` 与该基线一致，仅保留三处项目差异（Dockerfile 去掉未使用的 stage 别名、compose 回环发布 db 端口以保留宿主机开发、`.dockerignore` 额外排除 `.env`）
 - SPA fallback 行为沿用已验收基线：HTML 响应不带 `X-Request-ID`，访问日志把 SPA 页面请求记为 404（客户端实际收到 200）。作为基线继承的已知限制记录，不在本 Task 修改
+- Task 7 本地 Demo 命令仅供 local/development 和回环数据库；两命令均清空全部本地业务数据，`demo-data` 随后灌入固定数据，`demo-clean` 留下空库；不要求与原本地数据共存，不做 ownership 或同名词表复用
 
 ## 当前已实现
 
@@ -58,6 +60,8 @@
 - Task 5 完整候选集分页取全：场次创建页的客户 / 启用课程 / 人群类型、客户表单的行业、词表维护页的行业与人群类型在超过 100 条后仍完整可选 / 可见
 - Task 6 Compose 完整交付：app + PostgreSQL、生产前端随镜像、FastAPI 提供 SPA 与 API、db healthy 后自动 migration、app healthcheck、数据库 volume 持久化；宿主机 `make dev` 保留
 
+- Task 7 本地 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空全部本地业务数据后灌入固定数据，`make demo-clean` 清空全部本地业务数据；production 与非回环数据库被拒绝；不随应用启动自动灌入
+
 ## 当前尚未具备
 
 - 素材完整编辑与筛选、素材家族
@@ -68,25 +72,13 @@
 
 ## 当前任务
 
-- **Task 6：课程素材库运行与交付基线升级 —— PASS**（Task 文件：`tasks/task-006.md`）
-- 验收结论：已通过独立验收，accepted baseline 为 `32deec0e5f8fd8776785d046cdb3be1310ce735f`。
-- 验收方式：删除 `course-material-library_postgres_data` volume 后从空环境重新 `docker compose up -d --build`，独立复跑 Compose 启动、健康门禁、迁移、SPA/API 路由、持久化与全部代码级门禁。
-- 本轮独立复核结果：
-  - 空 volume 启动：db 先 healthy，app 随后 healthy（约 13s）；容器日志顺序为先 `Alembic migration completed` 再 Uvicorn 启动。
-  - 迁移：容器内 `alembic current` / `alembic heads` 均为单一 `0003_usages`；`alembic_version` 与 9 张业务表齐备；容器重建后 head 不变。
-  - 迁移失败边界：以错误数据库口令运行同一镜像，alembic 报错、容器退出码 1，Uvicorn 未启动。
-  - HTTP：`/`、SPA 深链接 `/sessions/<id>/post-class`、`/assets/index-*.js` 均 200 且内容正确；`/api/v1/health` 为 200 JSON；`/api/v1/not-found`、`/api`、未知静态资源为 404 JSON 且带 `X-Request-ID` 错误信封。
-  - 持久化：经 API 创建虚构素材后 `docker compose down`（保留 volume）再 `up -d`，该记录可按 id 与标题读回，head 仍为 `0003_usages`。
-  - 交付物：app 镜像内无 `.env`、`tests/`、`docs/`；`web/dist` 资源哈希与 `make check` 前端构建产物一致。
-  - 文档声明：`WEB_PORT=8123` 覆盖生效（8123 上首页与 health 均 200），随后恢复默认 8000。
-  - 门禁：`make check` 通过（ruff、pyright 0 error、后端 119 passed、E2E 数据库门禁 PASS、前端 lint/typecheck/11 passed/build）；`make smoke` 通过；`make e2e` 14 passed；`git diff --check` 通过。
-  - 范围：diff 仅含 `.dockerignore`、`Dockerfile`、`README.md`、`PROGRESS.md`、`app/main.py`、`docker-compose.yml` 与新增 `tasks/task-006.md`；`app/api`、`app/models`、`app/schemas`、`alembic/`、`tests/` 无改动，Task 1–5 业务语义未被改写。
-- 已知限制与观察（非阻塞，不构成 RC）：
-  - SPA HTML 响应不带 `X-Request-ID`，访问日志对 SPA 页面记 404；与已验收 WebApp Starter 基线行为一致，属继承限制。
-  - `web/index.html` 标题仍为 starter 的 `BenYan · System Status`、`lang="en"`，`SERVICE_NAME` 默认值仍为 `benyan-webapp-starter`；Task 6 只要求 README 项目化，未扩展修改。
-  - 宿主机 `make check` 仍要求先创建并迁移 `benyan_test`（`docs/verification.md` 已写明）；只有 E2E 数据库是自建自迁移。
-  - 宿主机开发模式与 Compose 的 app 服务不能同时占用 8000 端口（README 已写明）。
+- **Task 7：本地 Demo 数据集 —— 待复验**（Task 文件：`tasks/task-007.md`）。
+- 本轮 RC 修复：按用户重新冻结的语义，`demo-data` 与 `demo-clean` 均先按外键顺序清空全部本地业务数据；前者在同一事务中重新灌入固定虚构数据。删除精确 ownership、同名词表复用和外部引用保护要求。README 明确两命令均删除非 Demo 本地业务数据。
+- Migration / schema：未变；清理后 `alembic current` / `heads` 均为单一 `0003_usages`。
+- 自验：有同名行业与人群词表时 `demo-data` 成功；重复灌入计数稳定；重复清理后全部业务表为空；production 与非本地数据库被拒绝。本机 `make demo-data`、`make demo-clean` 各连续两次通过；`make check` 通过（ruff、pyright、后端 121 passed、前端 11 passed/build、E2E 数据库门禁）；`make smoke` 通过；`make e2e` 14 passed；`git diff --check` 通过。
+- 尚未实现：素材家族、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围；本 Task 不扩展这些功能。
+- 待复验：独立复核全部业务表清理、环境门禁和 README 的破坏性说明。已验收基线仍为 Task 6。
 
 ## 下一步
 
-- 不开始下一 Task。当前已验收基线为 Task 6（代码提交 `32deec0e5f8fd8776785d046cdb3be1310ce735f`）。
+- 对 Task 7 candidate commit 进行独立复验；通过后才更新 `PASS` 与 accepted baseline。
