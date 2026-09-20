@@ -10,7 +10,7 @@
 - Task 5: PASS
 - Task 6: PASS
 - Task 7: PASS
-- Task 8: 待独立验收
+- Task 8: PASS
 
 ## 已验收基线
 
@@ -19,11 +19,13 @@
 - Task 5 accepted baseline: 5ede01337f99fc4743fcb2b93896640e10c993e9
 - Task 6 accepted baseline: 32deec0e5f8fd8776785d046cdb3be1310ce735f
 - Task 7 accepted baseline: cdfd3d8ef8074997601cde7658a9fc0f129c55cf
+- Task 8 accepted baseline: 465a510886148d217a780888d0ea31cc10b1605f
 - Migration head: 0003_usages（单一 head）
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
 - Task 5 已通过独立验收
 - Task 6 独立验收时：空 volume `docker compose up -d --build` 后 db/app 均 healthy、自动迁移至 `0003_usages`、`down` / `up -d` 后数据读回一致；后端 119 passed、前端 11 passed、E2E 14 passed、`make smoke` 通过
+- Task 8 独立验收时：`make check` 通过（后端 121 passed、前端 14 passed）、`make smoke` 通过、E2E 18 passed（含 375px 布局与长页面保存按钮可达性）、`git diff --check` 通过；未发现 schema / migration / API 契约变更
 
 ## 已冻结判断
 
@@ -75,13 +77,14 @@
 
 ## 当前任务
 
-- **Task 8：v0.1 展示完成度收口 —— 待独立验收**（Task 文件：`tasks/task-008.md`）。
+- **Task 8：v0.1 展示完成度收口 —— PASS**（Task 文件：`tasks/task-008.md`）。
+- 独立验收结论：PASS；accepted baseline 为 `465a510886148d217a780888d0ea31cc10b1605f`。
 - 本轮实际完成范围：Starter 痕迹清理（title、lang、favicon）；`web/src/ui/statusBadge.ts` 统一素材状态 / 使用效果 / 使用状态 Badge tone；场次详情主操作层级调整；课后登记 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404 页与关键字面 loading 状态；词表页错误返回入口移除；素材列表正文两行摘要。
 - Migration / schema：未变，单一 head 仍为 `0003_usages`；未新增或修改 API 契约、后端字段与统计接口。
 - 本轮施工自验：`make check` 通过（后端 121 passed、前端 14 passed，含新增 Badge 映射单测）；`make smoke` 通过；`make e2e` 18 passed（新增 404 / title / lang 与 800px、375px 无横向溢出用例）；另用真实浏览器在 800×900 与 375×812 逐页截图检查素材列表、场次详情、课后登记 sticky 保存区与 404 页，无明显布局问题。
-- 已知限制 / 待验收事项：Badge tone 取值与 sticky 交互为展示层判断，需独立验收确认；未改变 Task 1–7 业务行为。
+- 已知风险：sticky 保存区在 Chromium 以外的浏览器表现尚未逐一验证，作为展示层已知风险记录，不在本 Task 扩展处理。
 - 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 不开始下一 Task；Task 8 进入独立验收，验收后由执行角色更新 `PROGRESS.md`。
+- 不开始下一 Task；Task 8 已验收，等待后续任务指令。
