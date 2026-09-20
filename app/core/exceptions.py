@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException
 
 
@@ -10,6 +11,13 @@ class ApplicationError(Exception):
         self.message = message
         self.status_code = status_code
         super().__init__(message)
+
+
+class ConflictError(ApplicationError):
+    """业务冲突（例如标准名称重复），必须返回明确错误而不是数据库 500。"""
+
+    def __init__(self, message: str, code: str = "CONFLICT") -> None:
+        super().__init__(code, message, 409)
 
 
 def error_response(request: Request, code: str, message: str, status_code: int) -> JSONResponse:
@@ -35,3 +43,8 @@ def install_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
         return error_response(request, "VALIDATION_ERROR", "Invalid request", 422)
+
+    @app.exception_handler(IntegrityError)
+    async def integrity_error(request: Request, exc: IntegrityError) -> JSONResponse:
+        """兜底：唯一约束等并发冲突返回 409，不向客户端暴露数据库细节。"""
+        return error_response(request, "CONFLICT", "Conflicting record", 409)
