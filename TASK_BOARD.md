@@ -20,9 +20,6 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## READY
 
-- Task 13 — 素材类型筛选与正文关键词搜索 — Developer: Codex — Verifier: Claude
-- Task 14 — Markdown 批量导入 — Developer: Luna / DS-Flash — Verifier: Sonnet
-- Task 15 — 素材核心补充字段 — Developer: Luna / DS-Flash — Verifier: Sonnet
 
 ## BLOCKED
 
@@ -30,6 +27,9 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 15
+- Task 14
+- Task 13
 - Task 12
 - Task 11
 - Task 10
