@@ -11,6 +11,7 @@ async function createMaterial(page: Page, title: string) {
   await page.getByLabel('正文').fill('虚构素材正文。')
   await page.getByRole('button', { name: '保存草稿' }).click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  return page.url().split('/materials/')[1]
 }
 
 async function createSession(page: Page, customer: string) {
@@ -40,7 +41,14 @@ async function createSession(page: Page, customer: string) {
   await expect(page.getByRole('heading', { name: customer })).toBeVisible()
   // 等待 SPA 路由真正落到场次详情，再从 URL 取 id
   await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/)
-  return page.url().split('/sessions/')[1]
+  return { id: page.url().split('/sessions/')[1], course }
+}
+
+async function associateWithCourse(page: Page, materialId: string, courseName: string) {
+  await page.goto(`/materials/${materialId}/edit`)
+  await page.getByLabel(courseName, { exact: true }).check()
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page).toHaveURL(new RegExp(`/materials/${materialId}$`))
 }
 
 function plannedCard(page: Page) {
@@ -66,7 +74,7 @@ test('plan two materials, reopen, remove one, reopen again', async ({ page }) =>
 
   await createMaterial(page, materialA)
   await createMaterial(page, materialB)
-  const sessionId = await createSession(page, customer)
+  const { id: sessionId } = await createSession(page, customer)
 
   // 新场次没有计划素材
   await expect(plannedCard(page).getByText('还没有计划素材。')).toBeVisible()
@@ -111,7 +119,7 @@ test('already planned material is shown as joined and not duplicated', async ({ 
   const material = unique('虚构素材')
 
   await createMaterial(page, material)
-  const sessionId = await createSession(page, customer)
+  const { id: sessionId } = await createSession(page, customer)
 
   await searchAndPlan(page, sessionId, material)
 
@@ -127,4 +135,98 @@ test('already planned material is shown as joined and not duplicated', async ({ 
   await page.goto(`/sessions/${sessionId}`)
   await expect(plannedCard(page).getByRole('heading', { name: '计划素材（1）' })).toBeVisible()
   await expect(plannedCard(page).getByRole('link', { name: material })).toHaveCount(1)
+})
+
+for (const viewport of [{ name: 'desktop', width: 1280, height: 900 }, { name: 'mobile', width: 375, height: 812 }]) {
+  test(`course-linked materials stay first while all materials remain searchable and selectable (${viewport.name})`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    const prefix = unique('课程优先素材')
+    const relatedA = `${prefix} 关联甲`
+    const unrelated = `${prefix} 未关联`
+    const relatedB = `${prefix} 关联乙`
+    const relatedAId = await createMaterial(page, relatedA)
+    await createMaterial(page, unrelated)
+    const relatedBId = await createMaterial(page, relatedB)
+    const { id: sessionId, course } = await createSession(page, unique('虚构客户'))
+    await associateWithCourse(page, relatedAId, course)
+    await associateWithCourse(page, relatedBId, course)
+
+    await page.goto(`/sessions/${sessionId}/materials`)
+    const searchResults = page.locator('.detail-body').filter({ has: page.getByRole('heading', { name: '搜索全库素材' }) }).locator('ul.planned-list')
+    const rows = searchResults.getByRole('listitem')
+    await expect(rows.filter({ hasText: relatedA })).toHaveCount(1)
+    await expect(rows.filter({ hasText: unrelated })).toHaveCount(1)
+    await expect(rows.filter({ hasText: relatedB })).toHaveCount(1)
+    const defaultTitles = await rows.allTextContents()
+    expect(defaultTitles.findIndex(text => text.includes(relatedA))).toBeLessThan(defaultTitles.findIndex(text => text.includes(unrelated)))
+    expect(defaultTitles.findIndex(text => text.includes(relatedB))).toBeLessThan(defaultTitles.findIndex(text => text.includes(unrelated)))
+    expect([relatedA, relatedB, unrelated].sort((left, right) => defaultTitles.findIndex(text => text.includes(left)) - defaultTitles.findIndex(text => text.includes(right)))
+      .join('|')).toBe([relatedB, relatedA, unrelated].join('|'))
+
+    // 搜索匹配全库中的关联与未关联素材，并继续按课程关联优先排序。
+    await page.getByLabel('搜索素材标题').fill(prefix)
+    await page.getByRole('button', { name: '搜索' }).click()
+    await expect(rows.filter({ hasText: relatedA })).toHaveCount(1)
+    await expect(rows.filter({ hasText: unrelated })).toHaveCount(1)
+    await expect(rows.filter({ hasText: relatedB })).toHaveCount(1)
+    const searchedTitles = await rows.allTextContents()
+    expect(searchedTitles.findIndex(text => text.includes(relatedA))).toBeLessThan(searchedTitles.findIndex(text => text.includes(unrelated)))
+    expect(searchedTitles.findIndex(text => text.includes(relatedB))).toBeLessThan(searchedTitles.findIndex(text => text.includes(unrelated)))
+    expect([relatedA, relatedB, unrelated].sort((left, right) => searchedTitles.findIndex(text => text.includes(left)) - searchedTitles.findIndex(text => text.includes(right)))
+      .join('|')).toBe([relatedB, relatedA, unrelated].join('|'))
+
+    const unrelatedRow = rows.filter({ hasText: unrelated })
+    await unrelatedRow.getByRole('button', { name: '加入计划' }).click()
+    await expect(unrelatedRow.getByText('已加入本场计划')).toBeVisible()
+    await page.locator('.detail-body').filter({ has: page.getByRole('heading', { name: /^本场计划/ }) })
+      .getByRole('link', { name: unrelated }).waitFor()
+    await page.getByRole('button', { name: '撤销计划' }).click()
+    await expect(page.locator('.detail-body').filter({ has: page.getByRole('heading', { name: /^本场计划/ }) })
+      .getByRole('link', { name: unrelated })).toHaveCount(0)
+    await expect(page.getByText('未用', { exact: true })).toHaveCount(0)
+
+    // 无关联素材课程时，结果仍正常展示，既有组内顺序不受优先逻辑影响。
+    const noAssociationSession = await createSession(page, unique('虚构客户'))
+    await page.goto(`/sessions/${noAssociationSession.id}/materials`)
+    await page.getByLabel('搜索素材标题').fill(prefix)
+    await page.getByRole('button', { name: '搜索' }).click()
+    await expect(page.getByRole('listitem').filter({ hasText: relatedA })).toBeVisible()
+    await expect(page.getByRole('listitem').filter({ hasText: unrelated })).toBeVisible()
+  })
+}
+
+test('older course-linked material remains prioritized beyond the first 20 newest materials', async ({ page }) => {
+  const prefix = unique('较旧课程关联素材')
+  const olderRelated = `${prefix} 关联项`
+  const olderRelatedId = await createMaterial(page, olderRelated)
+  const { id: sessionId, course } = await createSession(page, unique('虚构客户'))
+  await associateWithCourse(page, olderRelatedId, course)
+
+  const newerUnrelated = Array.from({ length: 21 }, (_, index) => `${prefix} 新素材 ${String(index + 1).padStart(2, '0')}`)
+  for (const title of newerUnrelated) {
+    const response = await page.request.post('/api/v1/materials', {
+      data: { title, type: '故事', body: '虚构素材正文。' },
+    })
+    expect(response.ok()).toBeTruthy()
+  }
+
+  await page.goto(`/sessions/${sessionId}/materials`)
+  const resultList = page.locator('.detail-body').filter({ has: page.getByRole('heading', { name: '搜索全库素材' }) }).locator('ul.planned-list')
+  const matchingRows = resultList.getByRole('listitem').filter({ hasText: prefix })
+  await expect(matchingRows).toHaveCount(22)
+  let matchingTitles = await matchingRows.allTextContents()
+  expect(matchingTitles[0]).toContain(olderRelated)
+
+  // The keyword result spans multiple pages too; preserve the API's newest-first order within the non-related group.
+  await page.getByLabel('搜索素材标题').fill(prefix)
+  await page.getByRole('button', { name: '搜索' }).click()
+  await expect(matchingRows).toHaveCount(22)
+  matchingTitles = await matchingRows.allTextContents()
+  expect(matchingTitles[0]).toContain(olderRelated)
+  expect(matchingTitles.slice(1).map(text => newerUnrelated.find(title => text.includes(title))))
+    .toEqual([...newerUnrelated].reverse())
+
+  const selectableRow = resultList.getByRole('listitem').filter({ hasText: newerUnrelated[0] })
+  await selectableRow.getByRole('button', { name: '加入计划' }).click()
+  await expect(selectableRow.getByText('已加入本场计划')).toBeVisible()
 })

@@ -1,4 +1,5 @@
 import type { Course } from './courses'
+import { fetchAllPages } from './client'
 
 export type Material = {
   id: string
@@ -18,13 +19,18 @@ export type NewMaterial = { title: string; type: string; body: string }
 export const materialStatuses = ['草稿', '可用', '主力', '待更新', '退役'] as const
 export const materialTypes = ['故事', '案例', 'Demo', '金句', '段子', '行业素材'] as const
 
-export async function listMaterials(q = '', page = 1, status = '', type = ''): Promise<MaterialPage> {
+export async function listMaterials(q = '', page = 1, status = '', type = '', pageSize?: number): Promise<MaterialPage> {
   const params = new URLSearchParams({ q, page: String(page) })
+  if (pageSize) params.set('page_size', String(pageSize))
   if (status) params.set('status', status)
   if (type) params.set('type', type)
   const response = await fetch(`/api/v1/materials?${params}`)
   if (!response.ok) throw new Error('素材列表加载失败')
   return response.json() as Promise<MaterialPage>
+}
+
+export async function listAllMaterials(q = ''): Promise<Material[]> {
+  return fetchAllPages((page, pageSize) => listMaterials(q, page, '', '', pageSize), material => material.id)
 }
 
 export async function findExactTitle(title: string): Promise<Material | null> {

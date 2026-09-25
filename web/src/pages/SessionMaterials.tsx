@@ -5,7 +5,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError } from '../api/client'
-import { listMaterials, type Material } from '../api/materials'
+import { listAllMaterials, type Material } from '../api/materials'
 import { getSession, type TeachingSession } from '../api/sessions'
 import { listUsages, planMaterial, removePlannedMaterial, type Usage } from '../api/usages'
 import { effectBadge, materialStatusBadge, usageStatusBadge } from '../ui/statusBadge'
@@ -32,15 +32,19 @@ export function SessionMaterials() {
 
   useEffect(() => {
     let active = true
-    listMaterials(submitted).then(data => {
+    listAllMaterials(submitted).then(data => {
       if (!active) return
-      setResults(data.items)
+      setResults(data)
       setSearched(true)
     }).catch(() => { if (active) setError('素材搜索失败') })
     return () => { active = false }
   }, [submitted])
 
   const plannedIds = new Set(usages.map(usage => usage.material_id))
+  const prioritizedResults = session
+    ? results.filter(material => material.courses.some(course => course.id === session.course.id))
+      .concat(results.filter(material => !material.courses.some(course => course.id === session.course.id)))
+    : results
 
   function applyUsages(next: Usage[]) {
     setUsages(next)
@@ -99,6 +103,7 @@ export function SessionMaterials() {
 
     <Card className="detail-body">
       <h2>搜索全库素材</h2>
+      <p>优先显示关联本课程的素材；其他素材仍可搜索并加入。</p>
       <form className="search-row" onSubmit={(event: FormEvent) => {
         event.preventDefault()
         setSubmitted(query.trim())
@@ -110,7 +115,7 @@ export function SessionMaterials() {
       {error && <Callout tone="risk">{error}</Callout>}
       {searched && results.length === 0 && <p>没有找到素材。</p>}
       <ul className="planned-list">
-        {results.map(material => <li key={material.id} className="planned-item">
+        {prioritizedResults.map(material => <li key={material.id} className="planned-item">
           <div>
             <Link to={`/materials/${material.id}`}>{material.title}</Link>
             <div className="record-badges">

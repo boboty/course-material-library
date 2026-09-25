@@ -16,11 +16,11 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## IN PROGRESS
 
-- Task 16 — 素材与课程多对多关系
+- Task 17 — 备课素材按当前课程优先展示
 
 ## READY
 
-- Task 17 — 备课素材按当前课程优先展示
+- Task 18 — 素材列表按课程筛选
 
 ## BLOCKED
 
@@ -28,6 +28,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 16
 - Task 15
 - Task 14
 - Task 13

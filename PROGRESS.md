@@ -21,6 +21,7 @@
 - Task 14: PASS
 - Task 15: PASS
 - Task 16: PASS
+- Task 17: PASS
 
 ## 已验收基线
 
@@ -46,6 +47,8 @@
 - Task 16 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 16 material course associations`
 - Task 16 独立验收时：隔离 PostgreSQL 17 测试库迁移至单一 head `0005_material_courses`；`make check` 通过（ruff、pyright 0 errors、后端 161 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 32 passed（含 1280px / 375px 课程关联编辑与详情），`git diff --check` 通过；审查确认关联表复合主键及外键、PUT 省略保留与显式整体替换、非法或不存在 ID 拒绝且无部分更新、停用课程保留、候选课程逐页取全；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；首次在 55432 端口运行 `make check` 时，既有 Demo 测试固定预期 5432 而失败，改用隔离 IPv6 localhost:5432 后全量通过。
 - Task 15 独立验收时：隔离本机 PostgreSQL 16 实例；0003 库插入虚构旧素材后升级至 head，三新增字段为 NULL，downgrade / 再 upgrade 正常，`alembic heads` 单一 head `0004_material_core_fields`；`make check` 通过（ruff、pyright 0 errors、后端 160 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 30 passed（含 1280px / 375px 三字段编辑、清空、列表不展示来源备注），`git diff --check` 通过；审查确认 PUT 省略补充字段保留原值、空白 / null 归一化为 null 清空，四字段编辑与快速录入无回退，详情仅展示有值字段，Demo 数据 / 应用代码无 source_note 内容，日志测试确认来源备注值不入日志；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；`source_note` 随素材读取 API（含使用记录内嵌的素材）返回，仅前端详情 / 编辑页展示，属内部应用范围内的行为，V1 无字段级权限；smoke 脚本不覆盖 PUT。
+- Task 17 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 17 course-prioritized prep materials`
+- Task 17 独立复验时（全新 Verifier 会话，针对上一轮 RC）：隔离 PostgreSQL（localhost:5432，`benyan_test` / `benyan_e2e`，未触碰 .env 中的远程库）迁移至单一 head `0005_material_courses`；`make check` 通过（ruff、pyright 0 errors、后端 161 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 35 passed（含桌面 / 375px 关联优先、搜索优先、非关联加入撤销，及“较旧关联素材 + 21 条更新非关联素材”回归：默认列表与关键词结果中关联素材均排第一，非关联组保持最新优先且可加入），`git diff --check` 通过；代码审查确认 `listAllMaterials` 经 `fetchAllPages` 逐页取全，再按场次主课程稳定分组（filter + concat），搜索仍为全库，无 schema / migration / API 变更；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；完整候选集经 offset 逐页读取，沿用既有分页并发一致性限制；候选集很大时前端一次取全的开销未评估；`.env` 的 DATABASE_URL 指向非本机库，验收中通过显式覆盖 DATABASE_URL 避免使用。
 - Migration head: 0005_material_courses（单一 head）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
@@ -85,6 +88,7 @@
 - Task 11 冻结：快速录入的同标题提示复用既有 `GET /api/v1/materials?title=` 精确相等查询（区分大小写、不做模糊或额外标准化）；前端以去除首尾空白后的标题查询，与后端保存时既有的 strip 行为一致，不属于新增标准化规则；提示不阻止保存，允许同标题素材并存的规则不变；查询失败时不显示提示且不影响保存。
 - Task 10 施工判断：素材列表的 `status` 为可选单值查询参数，值仅限现有五种素材状态；省略时查询全部，非法值按既有校验错误返回 422；关键词和状态条件共同作用于后端总数与分页。状态筛选不改变现有标题搜索范围。
 - Task 13 施工判断：素材列表 `type` 为可选单值筛选，值限定为现有六种素材类型；关键词以不区分大小写的子串匹配标题或正文，空正文不影响查询；关键词、类型、状态共同约束 total 和分页。任意筛选或关键词变化回到第一页，翻页保留全部条件。非法类型（含空值、多值）返回既有 422 `VALIDATION_ERROR`。不加入标签搜索、其他维度筛选或相关度排序。
+- Task 17 施工判断：场次计划素材页以场次主课程匹配 `Material.courses`，关联素材优先；各组内部保留素材 API 原有 `created_at desc, id desc` 次序。搜索仍调用全库查询，课程关联只排序、不限制候选或计划资格；不新增推荐分数、筛选或 schema。
 
 ## 当前已实现
 
@@ -107,6 +111,7 @@
 - Task 14：Markdown 批量导入页面及入口；严格格式校验、错误零写入、整批事务提交 / 失败回滚；成功结果显示导入数量与返回入口
 - Task 15：素材支撑判断、讲法要点、来源备注三个可空补充字段，编辑与详情支持维护和展示
 - Task 16：素材与课程多对多关系；编辑可选择多门课程，详情展示关联课程，停用课程保留
+- Task 17：场次计划素材候选按场次主课程关联优先显示；全库搜索、非关联素材加入与撤销计划仍可用
 
 ## 当前尚未具备
 
@@ -117,14 +122,8 @@
 
 ## 当前任务
 
-- Task 16：素材与课程多对多关系 —— PASS（Independent Verifier 独立验收）。
-  - 实现：Alembic `0005_material_courses` 增加复合主键关联表；素材读取返回关联课程；PUT 的 `course_ids` 省略时保留原关联，明确提交时整体替换，空数组清空。重复、非法或不存在的课程 ID 返回 422，修改前验证整组，避免部分写入。
-  - 前端：编辑页从课程 API 逐页取全候选课程，含停用课程；多选、清空与详情展示已接入。快速录入流程未改，课程关联不限制场次中的实际使用。
-  - Migration / schema：唯一 head `0005_material_courses`；隔离 PostgreSQL 17 库从 `0004_material_core_fields` 插入虚构旧素材后升级至 head，旧素材保留、课程关联计数为 0。
-  - Developer 自验：`make check` 通过（ruff、pyright 0 errors、后端 161 passed、E2E 数据库门禁、前端 14 passed、build）；`make smoke` 通过；`make e2e` 32 passed（含 1280px / 375px 编辑、详情、清空）；`git diff --check` 通过。
-  - 冻结判断：省略课程 ID 保留关联，显式数组整体替换；停用课程保留关联且可展示；非法 / 不存在课程 ID 整组拒绝。无删除课程的新语义。
-  - 未实现范围：备课页课程优先排序、素材列表课程筛选、推荐或使用限制、其他素材关系均属后续任务。
-  - 独立验收：PASS，见上方 accepted baseline 与验收记录。未在 Docker Compose 环境复测。`TASK_BOARD.md` 的 IN PROGRESS 状态由 Orchestrator 管理。
+- 无进行中 Task。Task 17：备课素材按当前课程优先展示 —— PASS（Independent Verifier 复验通过，见上方验收记录）。
+  - 实现：计划素材页逐页取全候选后，按场次主课程把关联素材排在未关联素材前，组内维持 API 的 `created_at desc, id desc` 次序；搜索仍覆盖全库，非关联素材可加入；无 API / schema / migration 变更。
 
 ## 上一已验收任务摘要
 
@@ -139,4 +138,4 @@
 
 ## 下一步
 
-- Task 16 已通过独立验收；由 Orchestrator 推进下一 Task。push / merge 须人工授权。
+- Task 18（素材列表按课程筛选）按 `TASK_BOARD.md` 由 Orchestrator 调度；push / merge 须人工授权。
