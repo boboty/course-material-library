@@ -86,7 +86,7 @@ def confirmed(command: str) -> bool:
     except EOFError:
         print()
         answer = ""
-    return answer.strip() == "yes"
+    return answer == "yes"
 
 
 async def run(command: str) -> None:

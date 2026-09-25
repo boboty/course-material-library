@@ -3,7 +3,9 @@ import os
 import subprocess
 from uuid import uuid4
 
+import pytest
 from sqlalchemy import func, insert, select
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.models import AudienceType, Course, Customer, Industry, Material, Session, Usage
@@ -15,11 +17,11 @@ TABLES = (Industry, AudienceType, Customer, Course, Material, Session, Usage)
 
 
 def command(action: str, *, app_env: str = "local", url: str = TEST_DATABASE_URL,
-            answer: str = "yes") -> subprocess.CompletedProcess[str]:
+            answer: str | None = "yes") -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "APP_ENV": app_env, "DATABASE_URL": url}
     return subprocess.run([".venv/bin/python", "-m", "scripts.demo_data", action],
                           capture_output=True, text=True, env=env, check=False,
-                          input=f"{answer}\n")
+                          input=f"{answer}\n" if answer is not None else "")
 
 
 async def table_counts() -> list[int]:
@@ -86,8 +88,21 @@ def test_cancelling_changes_no_data() -> None:
     assert command("clean").returncode == 0
     asyncio.run(add_preexisting_rows())
     before = asyncio.run(table_counts())
-    for answer in ("", "no", "y", "YES"):
-        result = command("seed", answer=answer)
-        assert result.returncode == 0, result.stderr
-        assert "cancelled; no data changed" in result.stdout
-        assert asyncio.run(table_counts()) == before
+    for action in ("seed", "clean"):
+        for answer in (" yes", "yes ", "Yes", "YES", "", None, "no", "y"):
+            result = command(action, answer=answer)
+            assert result.returncode == 0, result.stderr
+            assert "cancelled; no data changed" in result.stdout
+            assert asyncio.run(table_counts()) == before
+
+
+@pytest.mark.parametrize("action", ["seed", "clean"])
+@pytest.mark.parametrize("answer", [" yes", "yes ", "Yes", "YES", "", None])
+def test_cancelling_does_not_start_database_transaction(action: str,
+                                                        answer: str | None) -> None:
+    unreachable_url = make_url(TEST_DATABASE_URL).set(
+        host="127.0.0.1", port=1
+    ).render_as_string(hide_password=False)
+    result = command(action, url=unreachable_url, answer=answer)
+    assert result.returncode == 0, result.stderr
+    assert "cancelled; no data changed" in result.stdout

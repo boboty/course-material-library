@@ -12,6 +12,7 @@
 - Task 7: PASS
 - Task 8: PASS
 - Task 9: PASS
+- Paseo Experiment 001: PASS（独立 Verifier 已验收；工作区未提交）
 
 ## 已验收基线
 
@@ -22,6 +23,7 @@
 - Task 7 accepted baseline: cdfd3d8ef8074997601cde7658a9fc0f129c55cf
 - Task 8 accepted baseline: 465a510886148d217a780888d0ea31cc10b1605f
 - Task 9 accepted baseline: e4c67874a979ebfea28bb6031c8ae2e6f49814d4
+- Paseo Experiment 001 未创建代码提交；accepted baseline 保持 Task 9 的提交
 - Migration head: 0003_usages（单一 head）
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -55,6 +57,7 @@
 - SPA fallback 行为沿用已验收基线：HTML 响应不带 `X-Request-ID`，访问日志把 SPA 页面请求记为 404（客户端实际收到 200）。作为基线继承的已知限制记录，不在本 Task 修改
 - Task 7：`make demo-data` 清空目标数据库全部业务数据后灌入固定 Demo 数据；`make demo-clean` 清空全部业务数据并保留 schema/migration；不要求与原有数据共存，不做 ownership 或同名词表复用（数据库地址限制已由 Task 9 取消）
 - Task 9 冻结：Demo 数据命令的误操作保护为“执行前展示目标数据库 + 显式确认”，不再限制数据库主机；确认词固定为 `yes`，其他输入、直接回车与 EOF 一律取消且不修改数据；取消以退出码 0 结束；目标展示只输出驱动、主机、端口、库名、用户，不输出密码；保留 `APP_ENV` 必须为 local / development 的判断；`demo-data` 与 `demo-clean` 共用同一保护路径；不提供跳过确认的开关，不新增环境判断、数据库命名规则或权限机制
+- Paseo Experiment 001 验证 Task 9 冻结规则的精确匹配边界；未新增或修改冻结判断
 - Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
 
 ## 当前已实现
@@ -82,16 +85,15 @@
 
 ## 当前任务
 
-- **Task 9：调整 Demo 数据导入保护 —— PASS**（Task 文件：`tasks/task-009.md`）。
-- 独立验收结论：PASS；accepted baseline 为 `e4c67874a979ebfea28bb6031c8ae2e6f49814d4`。
-- 本轮实际完成范围：`scripts/demo_data.py` 移除 `DATABASE_URL` 必须为回环地址的限制；新增目标数据库展示（驱动、主机、端口、库名、用户，密码不输出）与清空提示；新增显式确认，仅输入 `yes` 才执行，其他输入 / 直接回车 / EOF 取消并以退出码 0 结束、不进入任何数据库事务；`demo-data` 与 `demo-clean` 共用该保护路径；保留 `APP_ENV` 必须为 local / development 的判断。
-- 同步更新：`tests/test_demo_data.py` 确认流与取消零变化用例；README「产品走查数据」章节说明新的保护方式。
-- Migration / schema：未变，单一 head 仍为 `0003_usages`；未修改任何业务代码、API 契约或前端。
-- 验证：`make check` 通过（ruff 通过、pyright 0 errors、后端 123 passed、E2E 库门禁脚本通过、前端 14 passed 及 build 成功）；`make smoke` 通过；`git diff --check` 通过；另手工执行 `DATABASE_URL` 指向非回环主机并回车取消，确认目标正确打印、密码未出现在输出中、退出码 0 且未发起数据库连接。
-- 未执行 `make e2e`：本 Task 不涉及页面或用户流程，无前端与 API 变更。
-- 已知风险：确认提示依赖交互式 stdin；在无 stdin 的自动化环境中命令会按 EOF 取消而不执行，作为当前保护方式的已知行为记录。
+- **Paseo Experiment 001：Demo 确认词严格匹配边界测试 —— PASS**（Task 文件：`tasks/experiment-paseo-001.md`）。
+- 独立 Verifier 只读审查代码与测试，并独立运行相关测试，结论 PASS。按用户要求未 commit / push；accepted baseline 仍为 Task 9 的 `e4c67874a979ebfea28bb6031c8ae2e6f49814d4`。
+- 本轮实际完成范围：Demo 确认条件改为精确比较 `yes`；测试覆盖 `seed` / `clean` 的 `yes`、前后空格、大小写、空字符串和 EOF，并验证取消退出码 0、不进入数据库事务、原有数据计数不变。
+- Migration / schema：未变，单一 head 仍为 `0003_usages`；API 契约和前端未修改；未新增环境判断或跳过确认开关。
+- 验证：相关测试 16 passed（执行者与独立 Verifier 均单独运行）；最终版 `make check` 通过（ruff、pyright 0 errors、后端 135 passed、E2E 库门禁脚本、前端 14 passed 与 build）；`git diff --check` 通过。测试使用临时本地 PostgreSQL `benyan_test` 实例。
+- 未运行 `make smoke` / `make e2e`：本实验未涉及后端运行边界、页面或完整用户流程。
+- 已知风险：确认依赖 stdin；EOF 按取消处理。工作区变更尚未提交，尚无本实验的 accepted baseline 提交。
 - 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 不开始下一 Task；Task 9 已验收，等待后续任务指令。
+- 本实验已通过独立验收；等待后续任务指令，当前工作区保持未提交。
