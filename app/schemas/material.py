@@ -46,6 +46,7 @@ class MaterialUpdate(BaseModel):
     audience_type_ids: list[UUID] | None = None
     industry_ids: list[UUID] | None = None
     tags: list[str] | None = None
+    source_material_id: UUID | None = None
     status: Literal["草稿", "可用", "主力", "待更新", "退役"]
 
     @field_validator("title")
@@ -102,6 +103,18 @@ class MaterialMarkdownImportResult(BaseModel):
     count: int
 
 
+class MaterialReference(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    title: str
+
+
+class MaterialFamilyCandidate(MaterialReference):
+    source_material_id: UUID | None
+    source_title: str | None
+
+
 class MaterialRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -116,9 +129,15 @@ class MaterialRead(BaseModel):
     audience_types: list[VocabularyRead]
     industries: list[VocabularyRead]
     tags: list[str]
+    source_material_id: UUID | None = None
     status: str
     created_at: datetime
     updated_at: datetime
+
+
+class MaterialDetailRead(MaterialRead):
+    source_material: MaterialReference | None = None
+    family_members: list[MaterialReference] = Field(default_factory=list)
 
 
 class MaterialPage(BaseModel):

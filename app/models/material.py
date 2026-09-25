@@ -57,6 +57,8 @@ class Material(Base):
                         name="materials_body_nonblank"),
         CheckConstraint("status = '草稿' OR (type IS NOT NULL AND body IS NOT NULL)",
                         name="materials_non_draft_complete"),
+        CheckConstraint("source_material_id IS NULL OR source_material_id <> id",
+                        name="materials_source_not_self"),
         Index("ix_materials_created_id", "created_at", "id"),
     )
 
@@ -69,6 +71,8 @@ class Material(Base):
     source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
+    source_material_id: Mapped[UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("materials.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="草稿")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                    server_default=func.now())
@@ -79,6 +83,8 @@ class Material(Base):
         secondary=material_audience_types, lazy="selectin")
     industries: Mapped[list[Industry]] = relationship(
         secondary=material_industries, lazy="selectin")
+    source_material: Mapped["Material | None"] = relationship(
+        remote_side="Material.id", foreign_keys=[source_material_id], lazy="selectin")
 
 
 from app.models.course import Course  # noqa: E402

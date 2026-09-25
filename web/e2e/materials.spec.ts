@@ -42,6 +42,53 @@ test('same title warns but still allows saving another material', async ({ page 
 })
 
 for (const width of [1280, 375]) {
+  test(`source materials form a flat family and can be cleared at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    async function createMaterial(title: string) {
+      const response = await page.request.post('/api/v1/materials', {
+        data: { title: `${title} ${crypto.randomUUID()}`, type: '故事', body: '虚构家族正文' },
+      })
+      expect(response.ok()).toBe(true)
+      return response.json() as Promise<{ id: string; title: string }>
+    }
+    async function saveSource(material: { id: string; title: string }, sourceId: string) {
+      await page.goto(`/materials/${material.id}/edit`)
+      await page.getByLabel('源素材').selectOption(sourceId)
+      await page.getByRole('button', { name: '保存修改' }).click()
+      await expect(page.getByRole('heading', { name: material.title })).toBeVisible()
+    }
+
+    const root = await createMaterial('虚构家族根')
+    const child = await createMaterial('虚构家族子素材')
+    const variant = await createMaterial('虚构家族变体')
+    await saveSource(child, root.id)
+    await saveSource(variant, child.id)
+
+    const variantData = await (await page.request.get(`/api/v1/materials/${variant.id}`)).json() as {
+      source_material_id: string; source_material: { id: string }; family_members: Array<{ id: string }>
+    }
+    expect(variantData.source_material_id).toBe(root.id)
+    expect(variantData.source_material.id).toBe(root.id)
+    expect(new Set(variantData.family_members.map(member => member.id))).toEqual(new Set([root.id, child.id]))
+    await page.goto(`/materials/${root.id}`)
+    await expect(page.getByRole('heading', { name: '素材家族' })).toBeVisible()
+    await expect(page.getByRole('link', { name: child.title })).toBeVisible()
+    await expect(page.getByRole('link', { name: variant.title })).toBeVisible()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+    await page.goto(`/materials/${variant.id}/edit`)
+    await page.getByLabel('源素材').selectOption('')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByText('无（当前素材为家族根）')).toBeVisible()
+    const cleared = await (await page.request.get(`/api/v1/materials/${variant.id}`)).json() as {
+      source_material_id: string | null; family_members: Array<{ id: string }>
+    }
+    expect(cleared.source_material_id).toBeNull()
+    expect(cleared.family_members).toEqual([])
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material tags can be added, normalized, removed and read back at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const title = `虚构自由标签 ${crypto.randomUUID()}`

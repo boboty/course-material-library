@@ -2,8 +2,9 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from app.core.exceptions import ApplicationError
 from app.db.session import get_session
@@ -12,10 +13,13 @@ from app.models.material import Material
 from app.models.vocabulary import AudienceType, Industry
 from app.schemas.material import (
     MaterialCreate,
+    MaterialDetailRead,
+    MaterialFamilyCandidate,
     MaterialMarkdownImport,
     MaterialMarkdownImportResult,
     MaterialPage,
     MaterialRead,
+    MaterialReference,
     MaterialUpdate,
 )
 
@@ -171,12 +175,42 @@ async def list_material_tags(session: DbSession) -> list[str]:
     return list(tags.all())
 
 
-@router.get("/{material_id}", response_model=MaterialRead)
-async def get_material(material_id: UUID, session: DbSession) -> Material:
+@router.get("/family-candidates", response_model=list[MaterialFamilyCandidate])
+async def list_material_family_candidates(session: DbSession) -> list[MaterialFamilyCandidate]:
+    source = aliased(Material)
+    rows = await session.execute(
+        select(
+            Material.id,
+            Material.title,
+            Material.source_material_id,
+            source.title.label("source_title"),
+        )
+        .outerjoin(source, source.id == Material.source_material_id)
+        .order_by(Material.created_at.desc(), Material.id.desc())
+    )
+    return [MaterialFamilyCandidate.model_validate(row._mapping) for row in rows]
+
+
+@router.get("/{material_id}", response_model=MaterialDetailRead)
+async def get_material(material_id: UUID, session: DbSession) -> MaterialDetailRead:
     material = await session.get(Material, material_id)
     if material is None:
         raise HTTPException(status_code=404)
-    return material
+    family_root_id = material.source_material_id or material.id
+    family_rows = await session.scalars(
+        select(Material)
+        .where(
+            or_(Material.id == family_root_id,
+                Material.source_material_id == family_root_id),
+            Material.id != material.id,
+        )
+        .order_by(Material.created_at, Material.id)
+    )
+    result = MaterialDetailRead.model_validate(material)
+    result.family_members = [
+        MaterialReference(id=member.id, title=member.title) for member in family_rows
+    ]
+    return result
 
 
 @router.put("/{material_id}", response_model=MaterialRead)
@@ -187,6 +221,22 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         raise HTTPException(status_code=404)
     if payload.status != "草稿" and (payload.type is None or payload.body is None):
         raise ApplicationError("MATERIAL_INCOMPLETE", "非草稿素材必须填写类型和正文", 422)
+    source_material_id: UUID | None = None
+    source_root: Material | None = None
+    if "source_material_id" in payload.model_fields_set and payload.source_material_id is not None:
+        requested_source = payload.source_material_id
+        if requested_source == material.id:
+            raise ApplicationError("MATERIAL_SOURCE_INVALID", "素材不能将自身设为源素材", 422)
+        source_material = await session.get(Material, requested_source)
+        if source_material is None:
+            raise ApplicationError("MATERIAL_SOURCE_NOT_FOUND", "源素材不存在", 422)
+        source_material_id = source_material.source_material_id or source_material.id
+        if source_material_id == material.id:
+            raise ApplicationError("MATERIAL_SOURCE_INVALID", "不能选择当前素材家族的成员", 422)
+        if source_material_id == source_material.id:
+            source_root = source_material
+        else:
+            source_root = await session.get(Material, source_material_id)
     courses = None
     audience_types = None
     industries = None
@@ -233,6 +283,15 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         material.industries = industries
     if tags is not None:
         material.tags = tags
+    if "source_material_id" in payload.model_fields_set:
+        if source_material_id is not None:
+            await session.execute(
+                update(Material)
+                .where(Material.source_material_id == material.id)
+                .values(source_material_id=source_material_id)
+            )
+        material.source_material_id = source_material_id
+        material.source_material = source_root
     await session.commit()
     await session.refresh(material)
     return material

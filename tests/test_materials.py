@@ -151,6 +151,86 @@ def test_material_tags_are_trimmed_deduplicated_and_replaceable(client: TestClie
     assert cleared.json()["tags"] == []
 
 
+def test_material_source_is_normalized_cleared_and_family_members_are_readable(
+    client: TestClient,
+) -> None:
+    def create(title: str) -> dict:
+        response = client.post("/api/v1/materials", json={
+            "title": f"{title} {uuid4().hex}", "type": "故事", "body": "虚构正文",
+        })
+        assert response.status_code == 201
+        assert response.json()["source_material_id"] is None
+        return response.json()
+
+    def set_source(material: dict, source_id: str | None):
+        return client.put(f"/api/v1/materials/{material['id']}", json={
+            "title": material["title"], "type": material["type"], "body": material["body"],
+            "status": "草稿", "source_material_id": source_id,
+        })
+
+    root = create("虚构家族根")
+    child = create("虚构家族子素材")
+    nested_target = create("虚构子素材目标")
+    assert set_source(child, root["id"]).json()["source_material_id"] == root["id"]
+    omitted = client.put(f"/api/v1/materials/{child['id']}", json={
+        "title": child["title"], "type": child["type"], "body": child["body"],
+        "status": "草稿",
+    })
+    assert omitted.status_code == 200
+    assert omitted.json()["source_material_id"] == root["id"]
+
+    normalized = set_source(nested_target, child["id"])
+    assert normalized.status_code == 200
+    assert normalized.json()["source_material_id"] == root["id"]
+    target_detail = client.get(f"/api/v1/materials/{nested_target['id']}").json()
+    assert target_detail["source_material"]["id"] == root["id"]
+
+    for member in client.get(f"/api/v1/materials/{root['id']}").json()["family_members"]:
+        assert member["id"] in {child["id"], nested_target["id"]}
+    root_detail = client.get(f"/api/v1/materials/{root['id']}").json()
+    assert {member["id"] for member in root_detail["family_members"]} == {
+        child["id"], nested_target["id"],
+    }
+    child_detail = client.get(f"/api/v1/materials/{child['id']}").json()
+    assert {member["id"] for member in child_detail["family_members"]} == {
+        root["id"], nested_target["id"],
+    }
+
+    cleared = set_source(nested_target, None)
+    assert cleared.status_code == 200
+    assert cleared.json()["source_material_id"] is None
+    assert client.get(f"/api/v1/materials/{nested_target['id']}").json()["family_members"] == []
+
+    for source_id, code in (
+        (root["id"], "MATERIAL_SOURCE_INVALID"),
+        (str(uuid4()), "MATERIAL_SOURCE_NOT_FOUND"),
+    ):
+        rejected = set_source(root, source_id)
+        assert rejected.status_code == 422
+        assert rejected.json()["error"]["code"] == code
+        assert client.get(f"/api/v1/materials/{root['id']}").json()["source_material_id"] is None
+
+    # Selecting a descendant would make a cycle even though it is not a direct self-reference.
+    assert set_source(child, root["id"]).status_code == 200
+    cycle = set_source(root, child["id"])
+    assert cycle.status_code == 422
+    assert cycle.json()["error"]["code"] == "MATERIAL_SOURCE_INVALID"
+    assert client.get(f"/api/v1/materials/{root['id']}").json()["source_material_id"] is None
+
+    new_root = create("虚构另一家族根")
+    movable_root = create("虚构将迁移的根")
+    attached_variant = create("虚构随根迁移的成员")
+    assert set_source(attached_variant, movable_root["id"]).status_code == 200
+    assert set_source(movable_root, new_root["id"]).status_code == 200
+    moved_root_detail = client.get(f"/api/v1/materials/{movable_root['id']}").json()
+    attached_detail = client.get(f"/api/v1/materials/{attached_variant['id']}").json()
+    assert moved_root_detail["source_material_id"] == new_root["id"]
+    assert attached_detail["source_material_id"] == new_root["id"]
+    assert {member["id"] for member in client.get(
+        f"/api/v1/materials/{new_root['id']}"
+    ).json()["family_members"]} == {movable_root["id"], attached_variant["id"]}
+
+
 def test_existing_material_read_has_empty_tags_after_migration(client: TestClient) -> None:
     created = client.post("/api/v1/materials", json={
         "title": f"旧素材标签兼容 {uuid4().hex}", "type": "案例", "body": "虚构正文",

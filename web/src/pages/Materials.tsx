@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterialTags, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterialFamilyCandidates, listMaterialTags, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialFamilyCandidate, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 import { listAllCourses, type Course } from '../api/courses'
 import { listAllAudienceTypes, listAllIndustries, type Vocabulary } from '../api/vocabularies'
@@ -214,6 +214,10 @@ export function MaterialDetail() {
     {material.supporting_judgment && <Card accent className="detail-body"><h2>支撑什么判断</h2><p>{material.supporting_judgment}</p></Card>}
     {material.speaking_notes && <Card accent className="detail-body"><h2>讲法要点</h2><p>{material.speaking_notes}</p></Card>}
     {material.source_note && <Card accent className="detail-body"><h2>来源备注（仅内部可见）</h2><p>{material.source_note}</p></Card>}
+    <Card accent className="detail-body"><h2>素材家族</h2>
+      <p>源素材：{material.source_material ? <Link to={`/materials/${material.source_material.id}`}>{material.source_material.title}</Link> : '无（当前素材为家族根）'}</p>
+      <p>同家族成员：{material.family_members?.length ? material.family_members.map(member => <span key={member.id}><Link to={`/materials/${member.id}`}>{member.title}</Link> </span>) : '暂无其他成员'}</p>
+    </Card>
     <Card accent className="detail-body"><h2>关联课程</h2><p>{material.courses.length ? material.courses.map(course => `${course.name}${course.status === '停用' ? '（停用）' : ''}`).join('、') : '暂无关联课程'}</p></Card>
     {material.audience_types.length > 0 && <Card accent className="detail-body"><h2>适用人群</h2><p>{material.audience_types.map(item => item.name).join('、')}</p></Card>}
     {material.industries.length > 0 && <Card accent className="detail-body"><h2>适用行业</h2><p>{material.industries.map(item => item.name).join('、')}</p></Card>}
@@ -238,13 +242,15 @@ export function MaterialEdit() {
   const [industries, setIndustries] = useState<Vocabulary[]>([])
   const [industryIds, setIndustryIds] = useState<string[]>([])
   const [tags, setTags] = useState<string[]>([])
+  const [materials, setMaterials] = useState<MaterialFamilyCandidate[]>([])
+  const [sourceMaterialId, setSourceMaterialId] = useState('')
   const [tagDraft, setTagDraft] = useState('')
   const [status, setStatus] = useState('草稿')
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
-    Promise.all([getMaterial(id), listAllCourses(), listAllAudienceTypes(), listAllIndustries()]).then(([material, allCourses, allAudienceTypes, allIndustries]) => {
+    Promise.all([getMaterial(id), listAllCourses(), listAllAudienceTypes(), listAllIndustries(), listMaterialFamilyCandidates()]).then(([material, allCourses, allAudienceTypes, allIndustries, allMaterials]) => {
       setTitle(material.title); setType(material.type || ''); setBody(material.body || '')
       setSupportingJudgment(material.supporting_judgment || '')
       setSpeakingNotes(material.speaking_notes || '')
@@ -253,6 +259,8 @@ export function MaterialEdit() {
       setAudienceTypes(allAudienceTypes); setAudienceTypeIds(material.audience_types.map(item => item.id))
       setIndustries(allIndustries); setIndustryIds(material.industries.map(item => item.id))
       setTags(material.tags)
+      setSourceMaterialId(material.source_material_id || '')
+      setMaterials(allMaterials.filter(candidate => candidate.id !== id))
       setStatus(material.status); setLoaded(true)
     }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
   }, [id])
@@ -270,6 +278,7 @@ export function MaterialEdit() {
       audience_type_ids: audienceTypeIds,
       industry_ids: industryIds,
       tags,
+      source_material_id: sourceMaterialId || null,
       status,
     }); navigate(`/materials/${id}`) }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
@@ -288,6 +297,8 @@ export function MaterialEdit() {
       <label>支撑什么判断<textarea rows={4} value={supportingJudgment} onChange={event => setSupportingJudgment(event.target.value)} /></label>
       <label>讲法要点<textarea rows={4} value={speakingNotes} onChange={event => setSpeakingNotes(event.target.value)} /></label>
       <label>来源备注（仅内部可见）<textarea rows={4} value={sourceNote} onChange={event => setSourceNote(event.target.value)} /></label>
+      <label htmlFor="material-source">源素材</label><select id="material-source" value={sourceMaterialId} onChange={event => setSourceMaterialId(event.target.value)}><option value="">无，作为独立素材 / 家族根</option>{materials.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}{candidate.source_title ? `（归属：${candidate.source_title}）` : ''}</option>)}</select>
+      <p>选择已有家族成员时会自动归到该家族根素材；不复制素材内容。</p>
       <fieldset><legend>关联课程</legend><p>可选择多门课程；不选择表示无关联。</p>{courses.map(course => <label key={course.id}><input type="checkbox" checked={courseIds.includes(course.id)} onChange={event => setCourseIds(current => event.target.checked ? [...current, course.id] : current.filter(value => value !== course.id))} />{course.name}{course.status === '停用' ? '（停用）' : ''}</label>)}</fieldset>
       <fieldset><legend>适用人群</legend><p>可多选；不选择表示不限定适用人群。</p>{audienceTypes.map(item => <label key={item.id}><input type="checkbox" checked={audienceTypeIds.includes(item.id)} onChange={event => setAudienceTypeIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
       <fieldset><legend>适用行业</legend><p>可多选；不选择表示不限定适用行业。</p>{industries.map(item => <label key={item.id}><input type="checkbox" checked={industryIds.includes(item.id)} onChange={event => setIndustryIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>

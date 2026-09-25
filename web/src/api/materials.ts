@@ -14,10 +14,19 @@ export type Material = {
   audience_types: Vocabulary[]
   industries: Vocabulary[]
   tags: string[]
+  source_material_id: string | null
+  source_material?: MaterialReference | null
+  family_members?: MaterialReference[]
   status: string
   created_at: string
   updated_at: string
 }
+export type MaterialReference = { id: string; title: string }
+export type MaterialFamilyCandidate = MaterialReference & {
+  source_material_id: string | null
+  source_title: string | null
+}
+export type MaterialDetail = Material & { family_members: MaterialReference[] }
 export type MaterialPage = { items: Material[]; page: number; page_size: number; total: number }
 export type NewMaterial = { title: string; type: string; body: string }
 export const materialStatuses = ['草稿', '可用', '主力', '待更新', '退役'] as const
@@ -47,6 +56,12 @@ export async function listMaterialTags(): Promise<string[]> {
 
 export async function listAllMaterials(q = ''): Promise<Material[]> {
   return fetchAllPages((page, pageSize) => listMaterials(q, page, '', '', pageSize), material => material.id)
+}
+
+export async function listMaterialFamilyCandidates(): Promise<MaterialFamilyCandidate[]> {
+  const response = await fetch('/api/v1/materials/family-candidates')
+  if (!response.ok) throw new Error('源素材候选加载失败')
+  return response.json() as Promise<MaterialFamilyCandidate[]>
 }
 
 export async function findExactTitle(title: string): Promise<Material | null> {
@@ -93,6 +108,7 @@ export type MaterialUpdate = {
   audience_type_ids: string[]
   industry_ids: string[]
   tags: string[]
+  source_material_id: string | null
   status: string
 }
 

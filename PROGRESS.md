@@ -27,6 +27,7 @@
 - Task 20: PASS
 - Task 21: PASS
 - Task 22: PASS
+- Task 23: PASS
 
 ## 已验收基线
 
@@ -62,9 +63,11 @@
 - Task 19 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55471，`benyan_test` / `benyan_e2e`，迁移至单一 head `0005_material_courses`；未使用 .env 数据库，已停止并删除）；手工在库中先写入虚构素材 + 课程 + `material_courses` 关联：连续两轮 `demo-data` 均成功（关联表清为 0，重建 7 素材 / 2 课程 / 3 场次），连续两轮 `demo-clean` 均成功（关联、素材、课程、场次全为 0，alembic 版本保留）；输入 `no`、空行、EOF 取消退出码 0 且数据零变化，`APP_ENV=production` 被拒绝且数据零变化；`make check` 通过（ruff、pyright 0 errors、后端 163 passed、E2E 数据库门禁、前端 14 passed、build），同一测试库上连续重复运行 `make check` 亦通过，`make smoke` 通过，`make e2e` 37 passed，`git diff --check` 通过。审查确认：diff 仅为 `scripts/demo_data.py` 增加 `delete(material_courses)`（位于 Material / Course 删除之前，仍在同一事务）、`tests/test_demo_data.py` 每轮 seed / clean 前写入虚构旧行业 / 人群 / 课程 / 素材 / 关联并断言关联表计数；原有 production、目标展示、精确 `yes`、取消零变化测试未改动；无 schema / migration / API / 前端变更，未新增 Demo 关联数据，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；目标展示测试依赖测试库 URL 主机名为 `localhost`（既有前提）；未对旧版代码做反向复现（依据 Task 18 验收记录与新增回归测试覆盖）。
 - Task 21 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 21 material tags`
 - Task 22 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 22 material audience industry tag filters`
+- Task 23 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 23 material family source relationship`
+- Task 23 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55451，`benyan_test` / `benyan_e2e`，验收后停止并删除；未使用 .env 远程库与 5432 实例），迁移至单一 head `0008_material_source`；`make check` 通过（ruff、pyright 0 errors、后端 169 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 45 passed（含 1280px / 375px 源素材归根、清除、详情成员），`git diff --check` 通过。完整 diff 审查并用 API 探测确认：自引用 422 `MATERIAL_SOURCE_INVALID`（另有 DB check constraint）；不存在的源素材 422 `MATERIAL_SOURCE_NOT_FOUND`；选择已有子素材作为目标时归一到其家族根；选择当前家族成员（会成环）422；PUT 省略保留关系、显式 null 清除；带成员的根迁入另一家族时直系成员同事务重挂到目标根，全程保持单层、无环；详情返回源素材与同家族成员；旧素材（迁移后 source 为空）为独立家族；不复制其他字段、不合并 usage；`/family-candidates` 位于 `/{id}` 之前。未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；候选接口一次返回全部素材 ID / 标题，规模未评估；重复使用检查按家族归并属后续 Task（本 Task 仅提供关系）；smoke 脚本不覆盖 PUT。
 - Task 22 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（localhost:57436，`benyan` / `benyan_test` / `benyan_e2e`，验收后停止并删除；未使用 .env 远程库与 5432 实例）；`make check` 通过（ruff、pyright 0 errors、后端 168 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 43 passed（含 1280px / 375px 单项与组合筛选、q 命中标签、候选超 100 条、条件变化回第一页、翻页保留条件、空结果、无横向溢出），`git diff --check` 通过；完整 diff 审查确认：无 schema / migration 变更；q 以 ilike 匹配标题、正文、标签（unnest 子查询）；`tag` 为精确 `contains` 单选；全部条件共同作用于 total 与分页；`GET /materials/tags` 位于 `/{id}` 之前，去重排序；额外 curl 探测：`audience_type_id=xyz` 与空值 → 422，不存在的 industry_id → 404，未命中标签 → total 0，标签筛选第 2 页正确，超 255 字符的 tag → 422。未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；标签候选查询未做规模性能评估；`tag` 参数上限 255 字符，更长的既有标签无法用于筛选（标签本身无长度上限）；`q` 中 `%` / `_` 通配符为既有行为；smoke 脚本不覆盖列表筛选。
 - Task 21 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（localhost:57434，`benyan_test` / `benyan_e2e`，验收后停止并删除；未使用 .env 远程库与 5432 实例）；迁移兼容：在 0006 库插入虚构旧素材后升级至 head，`tags` 为 `{}`，downgrade / 再 upgrade 正常，`alembic heads` 单一 head `0007_material_tags`；`make check` 通过（ruff、pyright 0 errors、后端 166 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 41 passed（含 1280px / 375px 标签增删、规范化、读回、详情展示、无横向溢出），`git diff --check` 通过。审查确认：schema 校验器逐项 trim、忽略空项、区分大小写精确去重并保留首次顺序；PUT 省略 `tags` 保留、显式数组整体替换、空数组清空（null 亦清空，与冻结判断一致）；migration 仅新增非空 `text[]` 默认空数组；未改快速录入、列表搜索 / 筛选及课程 / 人群 / 行业关系；无标签词典、推荐等越界内容；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；未设置标签数量或长度上限；标签搜索 / 筛选留给 Task 22 及后续；smoke 脚本不覆盖 PUT。
-- Migration head: 0007_material_tags（单一 head；Task 21 新增素材自由标签数组）
+- Migration head: 0008_material_source（单一 head；Task 23 新增可选源素材关系）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -134,27 +137,28 @@
 - Task 20：素材与人群类型、行业多对多关系；编辑页完整候选多选；详情展示已关联项；PUT 支持省略保留、整体替换和空数组清空；旧素材经 migration 升级后继续可读
 - Task 21：素材自由标签；编辑页可增加 / 删除多个标签，保存时 trim、忽略空值并精确去重；详情展示标签；快速录入默认空标签
 - Task 22：素材列表支持人群、行业、标签单选筛选；关键词搜索标题、正文或标签；所有条件共同作用于结果数与分页
+- Task 23：素材可指定源素材并动态归入单层家族；源素材只能指向家族根，根迁移时直系成员同步重挂，详情展示源素材及家族成员
 
 ## 当前尚未具备
 
-- 素材家族
 - 同客户 / 同集团重复提醒、连续差评及系统复核提示
 - 课后登记完成状态字段（V1 不建设）
 - 后端分页聚合 / 游标接口、可搜索的大候选集下拉（本 Task 明确不做）
 
 ## 当前任务
 
-- 无进行中 Task。Task 22 已 PASS；下一 Task 由 Orchestrator 推进（Task 23）。
+- Task 23「素材家族与源素材关系」已 PASS。无进行中 Task。
 
 ## 上一已验收任务摘要
 
+- Task 23：素材家族与源素材关系 —— PASS（Independent Verifier 独立验收）。证据见 Task 23 独立验收记录。
 - Task 22：素材列表人群、行业与标签筛选 —— PASS（Independent Verifier 独立验收）。证据见 Task 22 独立验收记录。
 - Task 21：素材标签 —— PASS（Independent Verifier 独立验收）。证据见 Task 21 独立验收记录。
 - Task 20：素材适用人群与行业 —— PASS（Independent Verifier 独立验收，RC 修复复验通过）。素材与人群类型、行业多对多；编辑页完整候选多选，详情仅展示已关联项；Demo 清理先于实体删除关联表。证据见 Task 20 独立验收记录。
 
 ## 下一步
 
-- 由 Orchestrator 推进 Task 23。Task 20 / 21 / 22 的 push / merge 须人工授权。
+- 按 TASK_BOARD 推进 Task 24。push / merge 须人工授权。
 
 ## Task 22 施工与验证
 
@@ -170,3 +174,11 @@
 - Migration / schema：单一 Alembic head `0007_material_tags`。迁移应用于本机专用 `benyan_test` 与 `benyan_e2e`；`benyan_test` 查询确认 head 为 `0007_material_tags`，当前 99 条素材均读到空标签数组。数据库非空默认值为迁移前已有素材回填空数组。
 - 验证：`make check` 通过（ruff、pyright 0 errors、后端 166 passed、E2E DB 安全门禁、前端 14 passed、前端 production build）；`make smoke` 通过（health 200 / X-Request-ID、404 错误响应）；`make e2e` 通过（41 passed，包含 1280px / 375px 标签增删、规范化、读回、详情展示及无横向溢出）；`git diff --check` 通过。
 - 已知限制 / 待验收：未在 Docker Compose 环境复测；未设置标签数量或长度上限；标签检索和筛选留给后续 Task。Developer 自验不构成独立验收。
+
+## Task 23 施工与验证
+
+- 实际完成：素材新增可选源素材关系；未指定时为独立家族；选择子素材时 API 自动归一到其根；拒绝直接自引用、缺失目标，以及会形成环的当前家族成员；切换源素材与清除关系均可用。根素材迁入另一家族时，同事务将其直系成员重挂到目标根，保证始终单层。详情展示源素材和同家族成员；编辑页支持选择 / 清除，未复制其他素材字段或合并历史 usage。
+- Migration / schema：新增 `0008_material_source`，`materials.source_material_id` nullable 自引用外键及非自引用 check constraint；`alembic heads` 显示单一 head `0008_material_source`。独立 migration 测试库先迁至 `0007_material_tags` 并写入虚构旧素材，再升级至 head；详情 API 读取成功，源素材为空且仍是独立家族。
+- 验证：`make check` 通过（ruff、pyright 0 errors、后端 169 passed、E2E 数据库安全门禁、前端 14 passed、production build）；最终代码版本 `make smoke` 通过（health 200 / X-Request-ID、404 错误响应）；最终代码版本在新建隔离库 `task23_verify_e2e` 上 `make e2e` 45 passed（含源素材归根、清除、详情成员与 1280px / 375px）；`git diff --check` 通过。
+- 冻结判断：PUT 省略 `source_material_id` 保留关系，显式 null 清除；选中已有子素材归一到其家族根；不支持多层树或内容 / usage 合并；重挂已有直系成员属于关系归并，不改变其素材内容及使用记录。
+- 已知限制 / 待验收：未在 Docker Compose 环境复测；编辑页候选及候选 API 一次读取完整素材 ID / 标题集合，超大素材库的响应规模未评估。Developer 自验不构成独立验收。
