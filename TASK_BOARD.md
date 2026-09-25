@@ -16,7 +16,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## IN PROGRESS
 
-- Task 18 — 素材列表按课程筛选
+- 无
 
 ## READY
 
@@ -28,6 +28,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 18
 - Task 17
 - Task 16
 - Task 15
