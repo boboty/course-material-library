@@ -5,7 +5,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { ApiError } from '../api/client'
-import { listAllMaterials, type Material } from '../api/materials'
+import { listSessionMaterialCandidates, type SessionMaterialCandidate } from '../api/materials'
 import { getSession, type TeachingSession } from '../api/sessions'
 import { listUsages, planMaterial, removePlannedMaterial, type Usage } from '../api/usages'
 import { effectBadge, materialStatusBadge, usageStatusBadge } from '../ui/statusBadge'
@@ -17,7 +17,7 @@ export function SessionMaterials() {
   const [usages, setUsages] = useState<Usage[]>([])
   const [query, setQuery] = useState('')
   const [submitted, setSubmitted] = useState('')
-  const [results, setResults] = useState<Material[]>([])
+  const [results, setResults] = useState<SessionMaterialCandidate[]>([])
   const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
 
@@ -32,13 +32,13 @@ export function SessionMaterials() {
 
   useEffect(() => {
     let active = true
-    listAllMaterials(submitted).then(data => {
+    listSessionMaterialCandidates(id, submitted).then(data => {
       if (!active) return
       setResults(data)
       setSearched(true)
     }).catch(() => { if (active) setError('素材搜索失败') })
     return () => { active = false }
-  }, [submitted])
+  }, [id, submitted])
 
   const plannedIds = new Set(usages.map(usage => usage.material_id))
   const prioritizedResults = session
@@ -55,7 +55,9 @@ export function SessionMaterials() {
     setError('')
     try {
       const created = await planMaterial(id, materialId)
-      if (!usages.some(usage => usage.id === created.id)) applyUsages([...usages, created])
+      if (!usages.some(usage => usage.id === created.id)) {
+        applyUsages(await listUsages(id).catch(() => [...usages, created]))
+      }
     } catch (reason) {
       // 重复点击或并发加入：服务端已存在该计划，刷新真实状态而不是报错
       if (reason instanceof ApiError && reason.code === 'CONFLICT') {
@@ -122,6 +124,12 @@ export function SessionMaterials() {
               <span className="record-meta">{material.type || '未填写类型'}</span>
               <Badge {...materialStatusBadge(material.status)}>{material.status}</Badge>
             </div>
+            {material.repeat_usage && <div className={`repeat-usage repeat-usage--${material.repeat_usage.level}`}>
+              <Badge tone={material.repeat_usage.level === 'same_customer' ? 'risk' : 'warning'}>
+                {material.repeat_usage.level === 'same_customer' ? '同客户已用过' : '同集团其他客户已用过'}
+              </Badge>
+              <span>最近一次：{material.repeat_usage.session_date} · {material.repeat_usage.course_name} · {material.repeat_usage.audience_types.join('、')} · {material.repeat_usage.customer_name}</span>
+            </div>}
           </div>
           {plannedIds.has(material.id)
             ? <Badge tone="success">已加入本场计划</Badge>

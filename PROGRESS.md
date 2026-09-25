@@ -28,6 +28,7 @@
 - Task 21: PASS
 - Task 22: PASS
 - Task 23: PASS
+- Task 24: PASS
 
 ## 已验收基线
 
@@ -147,7 +148,7 @@
 
 ## 当前任务
 
-- Task 23「素材家族与源素材关系」已 PASS。无进行中 Task。
+- Task 24「备课同客户与同集团重复使用提醒」已 PASS。无进行中 Task。
 
 ## 上一已验收任务摘要
 
@@ -182,3 +183,20 @@
 - 验证：`make check` 通过（ruff、pyright 0 errors、后端 169 passed、E2E 数据库安全门禁、前端 14 passed、production build）；最终代码版本 `make smoke` 通过（health 200 / X-Request-ID、404 错误响应）；最终代码版本在新建隔离库 `task23_verify_e2e` 上 `make e2e` 45 passed（含源素材归根、清除、详情成员与 1280px / 375px）；`git diff --check` 通过。
 - 冻结判断：PUT 省略 `source_material_id` 保留关系，显式 null 清除；选中已有子素材归一到其家族根；不支持多层树或内容 / usage 合并；重挂已有直系成员属于关系归并，不改变其素材内容及使用记录。
 - 已知限制 / 待验收：未在 Docker Compose 环境复测；编辑页候选及候选 API 一次读取完整素材 ID / 标题集合，超大素材库的响应规模未评估。Developer 自验不构成独立验收。
+
+## Task 24 施工状态
+
+- 当前状态：待独立验收。已实现备课专用候选 API 与家族级重复使用提示。
+- 实际完成：仅以状态为“已用”的其他场次记录作为历史；先查当前客户，命中时给强提醒；当前客户未命中时，仅在客户有集团名的情况下查同集团其他客户并给弱提醒。按素材家族根归并，按场次日期取最近一次，并展示日期、课程、人群类型和客户。计划 / 未用记录不触发提示；无集团只查当前客户；不影响加入计划。既有全库搜索、课程关联优先排序、加入及撤销流程保留。
+- Migration / schema：无 migration 或数据库 schema 变更；Alembic head 仍为 `0008_material_source`。
+- 验证：最终代码版本 `make check` 通过（ruff、pyright 0 errors、后端 172 passed、E2E 数据库安全门禁、前端 lint / typecheck、Vitest 14 passed、production build）；`make smoke` 通过（health 200 / X-Request-ID、404 错误响应）；`E2E_POSTGRES_DB=task24_verify_e2e make e2e` 通过（47 passed，含 1280px / 375px 集团提醒、最近使用信息展示及提醒下加入计划）；`git diff --check` 通过。后端测试覆盖同客户优先、家族成员命中、最近实际使用、计划 / 未用过滤、无集团和无历史。
+- 冻结判断：集团按 `group_name` 精确相等匹配；当前备课场次自身不参与历史提醒；同客户提醒覆盖集团提醒，不叠加；每种级别只展示日期最近的一次匹配记录。
+- 已知风险 / 限制：未在 Docker Compose 环境复测；候选 API 返回当前搜索结果全集，家庭历史查询与全量候选在超大数据规模下的性能未评估。Developer 自验不构成独立验收。
+- 下一步：由 Independent Verifier 独立审查本轮交付并按规则写入验收状态；保留 Orchestrator 管理的 `TASK_BOARD.md` 与 `RUN_LOG.md` 未提交改动。
+
+## Task 24 独立验收
+
+- 结论：PASS（全新 Independent Verifier，Claude Sonnet 5）。
+- 证据：审查完整 diff：仅统计状态“已用”记录，计划 / 未用排除；按家族根（source_material_id 或自身）归并；同客户优先并覆盖同集团；每级取最近场次日期；返回日期、课程、人群、客户；无集团只查同客户；当前场次自身排除；搜索条件与排序与原素材列表一致；提醒不阻止加入。独立运行：`make check` 通过（后端 172 passed、前端 14 passed、build 通过）；`make smoke` 通过；隔离库 `task24_indep_verify_e2e` 上 `make e2e` 47 passed（含 1280px / 375px）；`git diff --check` 通过。无 migration 变更。
+- 限制：未在 Docker Compose 复测；后端测试未直接覆盖“同客户与同集团同时存在”之外的 375px 后端行为，且 e2e 仅覆盖集团弱提醒的 UI，强提醒 UI 由 API 测试覆盖；超大数据规模性能未评估。
+- accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 24 session material repeat usage warnings`（以该 commit 为准，不使用 HEAD）。

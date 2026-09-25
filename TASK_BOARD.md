@@ -16,11 +16,10 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## IN PROGRESS
 
-- Task 23 — 素材家族与源素材关系
+- Task 24 — 备课同客户与同集团重复使用提醒
 
 ## READY
 
-- Task 24 — 备课同客户与同集团重复使用提醒
 - Task 25 — 素材复核、Demo 验证、案例类别与退役原因
 - Task 26 — 复核到期与连续两次差评提示
 - Task 27 — 草稿待补全
@@ -32,6 +31,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 23
 - Task 22
 - Task 21
 - Task 20

@@ -60,8 +60,11 @@
 .planned-list { display: grid; gap: var(--space-3); list-style: none; padding: 0; margin: var(--space-4) 0 0; }
 .planned-item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--border-subtle); padding-bottom: var(--space-3); }
 .planned-item:last-child { border-bottom: none; padding-bottom: 0; }
+.planned-item > div { min-width: 0; flex: 1; }
+.repeat-usage { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5; }
+.repeat-usage > span { min-width: 0; overflow-wrap: anywhere; }
 .detail-body > div > h2 { font-size: var(--text-lg); }
-@media (max-width: 640px) { .by-container { padding-inline: var(--space-4); } .page-header { flex-direction: column; } .record-list { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .by-container { padding-inline: var(--space-4); } .page-header { flex-direction: column; } .record-list { grid-template-columns: 1fr; } .planned-item { align-items: flex-start; } }
 .post-class-card { margin-bottom: 1rem; }
 .post-class-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1rem; }
 .post-class-controls label { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }

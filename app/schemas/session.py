@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.models.course import SESSION_DURATIONS
 from app.schemas.course import CourseRead, VocabularyRead
 from app.schemas.fields import OptionalText
+from app.schemas.material import MaterialRead
 
 
 class SessionCreate(BaseModel):
@@ -65,3 +66,15 @@ class SessionPage(BaseModel):
     page: int
     page_size: int
     total: int
+
+
+class RepeatUsageRead(BaseModel):
+    level: str
+    session_date: date
+    course_name: str
+    audience_types: list[str]
+    customer_name: str
+
+
+class SessionMaterialCandidateRead(MaterialRead):
+    repeat_usage: RepeatUsageRead | None = None

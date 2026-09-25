@@ -27,6 +27,14 @@ export type MaterialFamilyCandidate = MaterialReference & {
   source_title: string | null
 }
 export type MaterialDetail = Material & { family_members: MaterialReference[] }
+export type RepeatUsage = {
+  level: 'same_customer' | 'same_group'
+  session_date: string
+  course_name: string
+  audience_types: string[]
+  customer_name: string
+}
+export type SessionMaterialCandidate = Material & { repeat_usage: RepeatUsage | null }
 export type MaterialPage = { items: Material[]; page: number; page_size: number; total: number }
 export type NewMaterial = { title: string; type: string; body: string }
 export const materialStatuses = ['草稿', '可用', '主力', '待更新', '退役'] as const
@@ -56,6 +64,14 @@ export async function listMaterialTags(): Promise<string[]> {
 
 export async function listAllMaterials(q = ''): Promise<Material[]> {
   return fetchAllPages((page, pageSize) => listMaterials(q, page, '', '', pageSize), material => material.id)
+}
+
+export async function listSessionMaterialCandidates(sessionId: string, q = ''): Promise<SessionMaterialCandidate[]> {
+  const params = new URLSearchParams()
+  if (q) params.set('q', q)
+  const response = await fetch(`/api/v1/sessions/${encodeURIComponent(sessionId)}/material-candidates?${params}`)
+  if (!response.ok) throw new Error('素材搜索失败')
+  return response.json() as Promise<SessionMaterialCandidate[]>
 }
 
 export async function listMaterialFamilyCandidates(): Promise<MaterialFamilyCandidate[]> {

@@ -14,9 +14,10 @@ async function createMaterial(page: Page, title: string) {
   return page.url().split('/materials/')[1]
 }
 
-async function createSession(page: Page, customer: string) {
+async function createSession(page: Page, customer: string, groupName = '') {
   await page.goto('/customers/new')
   await page.getByLabel('标准名称').fill(customer)
+  if (groupName) await page.getByLabel('所属集团').fill(groupName)
   await page.getByRole('button', { name: '保存客户' }).click()
   await expect(page.getByRole('heading', { name: '编辑客户' })).toBeVisible()
 
@@ -41,7 +42,17 @@ async function createSession(page: Page, customer: string) {
   await expect(page.getByRole('heading', { name: customer })).toBeVisible()
   // 等待 SPA 路由真正落到场次详情，再从 URL 取 id
   await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/)
-  return { id: page.url().split('/sessions/')[1], course }
+  return { id: page.url().split('/sessions/')[1], course, customer, audience }
+}
+
+async function recordActualUsage(page: Page, sessionId: string, materialId: string, status: '已用' | '未用') {
+  const planned = await page.request.post(`/api/v1/sessions/${sessionId}/usages`, { data: { material_id: materialId } })
+  expect(planned.status()).toBe(201)
+  const usage = await planned.json() as { id: string }
+  const saved = await page.request.put(`/api/v1/sessions/${sessionId}/post-class`, {
+    data: { usages: [{ id: usage.id, status, effect: '未评' }] },
+  })
+  expect(saved.status()).toBe(200)
 }
 
 async function associateWithCourse(page: Page, materialId: string, courseName: string) {
@@ -192,6 +203,30 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 900 }, { name: '
     await page.getByRole('button', { name: '搜索' }).click()
     await expect(page.getByRole('listitem').filter({ hasText: relatedA })).toBeVisible()
     await expect(page.getByRole('listitem').filter({ hasText: unrelated })).toBeVisible()
+  })
+
+  test(`group reuse warning shows latest actual use and does not block planning (${viewport.name})`, async ({ page }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height })
+    const materialTitle = unique('集团重复提醒素材')
+    const materialId = await createMaterial(page, materialTitle)
+    const group = unique('虚构集团')
+    const current = await createSession(page, unique('虚构客户'), group)
+    const peer = await createSession(page, unique('虚构客户'), group)
+    await recordActualUsage(page, peer.id, materialId, '已用')
+
+    await page.goto(`/sessions/${current.id}/materials`)
+    await page.getByLabel('搜索素材标题').fill(materialTitle)
+    await page.getByRole('button', { name: '搜索' }).click()
+    const resultList = page.locator('.detail-body')
+      .filter({ has: page.getByRole('heading', { name: '搜索全库素材' }) })
+      .getByRole('list')
+    const row = resultList.getByRole('listitem').filter({ hasText: materialTitle })
+    await expect(row.getByText('同集团其他客户已用过')).toBeVisible()
+    await expect(row.getByText(new RegExp(`最近一次：2026-07-01 · ${peer.course} · ${peer.audience} · ${peer.customer}`))).toBeVisible()
+    const addButton = row.getByRole('button', { name: '加入计划' })
+    await expect(addButton).toBeEnabled()
+    await addButton.click()
+    await expect(row.getByText('已加入本场计划')).toBeVisible()
   })
 }
 
