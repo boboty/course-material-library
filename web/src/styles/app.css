@@ -45,6 +45,11 @@
 .choice-field legend { padding-inline: var(--space-2); font-weight: var(--fw-semibold); }
 .choice-item { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: var(--fw-regular); }
 .choice-item input { width: auto; }
+.tag-editor { display: flex; align-items: end; gap: var(--space-3); }
+.tag-editor label { flex: 1; }
+.tag-list { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tag-list li { display: inline-flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); }
+@media (max-width: 480px) { .tag-editor { align-items: stretch; flex-direction: column; } }
 .vocabulary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: var(--space-5); }
 .vocabulary-grid .form-card { max-width: none; margin-top: var(--space-7); }
 .vocabulary-list { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; padding: 0; margin: 0; }

@@ -182,6 +182,7 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         industries = list(rows.all())
         if len(industries) != len(identifiers):
             raise ApplicationError("MATERIAL_VOCABULARY_IDS_INVALID", "行业不存在", 422)
+    tags = (payload.tags or []) if "tags" in payload.model_fields_set else None
     material.title = payload.title
     material.type = payload.type
     material.body = payload.body
@@ -198,6 +199,8 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         material.audience_types = audience_types
     if industries is not None:
         material.industries = industries
+    if tags is not None:
+        material.tags = tags
     await session.commit()
     await session.refresh(material)
     return material

@@ -16,11 +16,10 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## IN PROGRESS
 
-- Task 20 — 素材适用人群与行业
+- Task 21 — 素材标签
 
 ## READY
 
-- Task 21 — 素材标签
 - Task 22 — 素材列表人群、行业与标签筛选
 - Task 23 — 素材家族与源素材关系
 - Task 24 — 备课同客户与同集团重复使用提醒
@@ -35,6 +34,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 20
 - Task 19
 - Task 18
 - Task 17

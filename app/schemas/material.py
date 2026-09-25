@@ -45,6 +45,7 @@ class MaterialUpdate(BaseModel):
     course_ids: list[UUID] | None = None
     audience_type_ids: list[UUID] | None = None
     industry_ids: list[UUID] | None = None
+    tags: list[str] | None = None
     status: Literal["草稿", "可用", "主力", "待更新", "退役"]
 
     @field_validator("title")
@@ -76,6 +77,20 @@ class MaterialUpdate(BaseModel):
             return None
         return value.strip() or None
 
+    @field_validator("tags")
+    @classmethod
+    def normalize_tags(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        normalized: list[str] = []
+        seen: set[str] = set()
+        for tag in value:
+            cleaned = tag.strip()
+            if cleaned and cleaned not in seen:
+                normalized.append(cleaned)
+                seen.add(cleaned)
+        return normalized
+
 
 class MaterialMarkdownImport(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -100,6 +115,7 @@ class MaterialRead(BaseModel):
     courses: list[CourseRead]
     audience_types: list[VocabularyRead]
     industries: list[VocabularyRead]
+    tags: list[str]
     status: str
     created_at: datetime
     updated_at: datetime

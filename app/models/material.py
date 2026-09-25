@@ -11,7 +11,9 @@ from sqlalchemy import (
     Table,
     Text,
     func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -65,6 +67,8 @@ class Material(Base):
     supporting_judgment: Mapped[str | None] = mapped_column(Text, nullable=True)
     speaking_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    tags: Mapped[list[str]] = mapped_column(
+        ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="草稿")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                    server_default=func.now())

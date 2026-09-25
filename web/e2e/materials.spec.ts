@@ -42,6 +42,42 @@ test('same title warns but still allows saving another material', async ({ page 
 })
 
 for (const width of [1280, 375]) {
+  test(`material tags can be added, normalized, removed and read back at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const title = `虚构自由标签 ${crypto.randomUUID()}`
+    const created = await page.request.post('/api/v1/materials', {
+      data: { title, type: '故事', body: '虚构标签测试正文' },
+    })
+    expect(created.ok()).toBe(true)
+    const material = await created.json() as { id: string; tags: string[] }
+    expect(material.tags).toEqual([])
+
+    await page.goto(`/materials/${material.id}/edit`)
+    const tagInput = page.getByLabel('添加标签')
+    await tagInput.fill('  复盘  ')
+    await page.getByRole('button', { name: '添加标签' }).click()
+    await tagInput.fill('复盘')
+    await page.getByRole('button', { name: '添加标签' }).click()
+    await expect(page.getByLabel('删除标签 复盘')).toHaveCount(1)
+    await tagInput.fill('故事线索')
+    await page.getByRole('button', { name: '添加标签' }).click()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '标签', exact: true })).toBeVisible()
+    await expect(page.getByText('复盘、故事线索')).toBeVisible()
+    expect((await (await page.request.get(`/api/v1/materials/${material.id}`)).json()).tags).toEqual(['复盘', '故事线索'])
+
+    await page.goto(`/materials/${material.id}/edit`)
+    await expect(page.getByLabel('删除标签 复盘')).toBeVisible()
+    await page.getByLabel('删除标签 复盘').click()
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByText('故事线索', { exact: true })).toBeVisible()
+    expect((await (await page.request.get(`/api/v1/materials/${material.id}`)).json()).tags).toEqual(['故事线索'])
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`duplicate title warning follows exact backend match at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const title = `虚构重复提示 ${crypto.randomUUID()}`

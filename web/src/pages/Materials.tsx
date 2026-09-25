@@ -181,6 +181,7 @@ export function MaterialDetail() {
     <Card accent className="detail-body"><h2>关联课程</h2><p>{material.courses.length ? material.courses.map(course => `${course.name}${course.status === '停用' ? '（停用）' : ''}`).join('、') : '暂无关联课程'}</p></Card>
     {material.audience_types.length > 0 && <Card accent className="detail-body"><h2>适用人群</h2><p>{material.audience_types.map(item => item.name).join('、')}</p></Card>}
     {material.industries.length > 0 && <Card accent className="detail-body"><h2>适用行业</h2><p>{material.industries.map(item => item.name).join('、')}</p></Card>}
+    <Card accent className="detail-body"><h2>标签</h2><p>{material.tags.length ? material.tags.join('、') : '暂无标签'}</p></Card>
   </>}</main>
 }
 
@@ -200,6 +201,8 @@ export function MaterialEdit() {
   const [audienceTypeIds, setAudienceTypeIds] = useState<string[]>([])
   const [industries, setIndustries] = useState<Vocabulary[]>([])
   const [industryIds, setIndustryIds] = useState<string[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [tagDraft, setTagDraft] = useState('')
   const [status, setStatus] = useState('草稿')
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
@@ -213,6 +216,7 @@ export function MaterialEdit() {
       setCourses(allCourses); setCourseIds(material.courses.map(course => course.id))
       setAudienceTypes(allAudienceTypes); setAudienceTypeIds(material.audience_types.map(item => item.id))
       setIndustries(allIndustries); setIndustryIds(material.industries.map(item => item.id))
+      setTags(material.tags)
       setStatus(material.status); setLoaded(true)
     }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
   }, [id])
@@ -229,10 +233,16 @@ export function MaterialEdit() {
       course_ids: courseIds,
       audience_type_ids: audienceTypeIds,
       industry_ids: industryIds,
+      tags,
       status,
     }); navigate(`/materials/${id}`) }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
     finally { setSaving(false) }
+  }
+  function addTag() {
+    const tag = tagDraft.trim()
+    if (tag && !tags.includes(tag)) setTags(current => [...current, tag])
+    setTagDraft('')
   }
   return <main className="material-page by-container"><Link to={`/materials/${id}`}>← 返回素材详情</Link><div className="by-eyebrow by-eyebrow--tick">编辑素材</div><h1>编辑素材</h1><p className="by-lead">草稿可暂缺类型和正文；其他状态必须填写完整。</p>
     {loadError && <Callout tone="risk">{loadError}</Callout>}{!loaded && !loadError && <p className="result-count">素材加载中…</p>}
@@ -245,6 +255,7 @@ export function MaterialEdit() {
       <fieldset><legend>关联课程</legend><p>可选择多门课程；不选择表示无关联。</p>{courses.map(course => <label key={course.id}><input type="checkbox" checked={courseIds.includes(course.id)} onChange={event => setCourseIds(current => event.target.checked ? [...current, course.id] : current.filter(value => value !== course.id))} />{course.name}{course.status === '停用' ? '（停用）' : ''}</label>)}</fieldset>
       <fieldset><legend>适用人群</legend><p>可多选；不选择表示不限定适用人群。</p>{audienceTypes.map(item => <label key={item.id}><input type="checkbox" checked={audienceTypeIds.includes(item.id)} onChange={event => setAudienceTypeIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
       <fieldset><legend>适用行业</legend><p>可多选；不选择表示不限定适用行业。</p>{industries.map(item => <label key={item.id}><input type="checkbox" checked={industryIds.includes(item.id)} onChange={event => setIndustryIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
+      <fieldset className="choice-field"><legend>标签</legend><p>自由输入，可添加多个；首尾空白会自动去除。</p><div className="tag-editor"><label htmlFor="material-tag-input">添加标签<input id="material-tag-input" value={tagDraft} onChange={event => setTagDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addTag() } }} /></label><Button type="button" variant="secondary" onClick={addTag}>添加标签</Button></div><ul className="tag-list">{tags.map(tag => <li key={tag}>{tag}<Button type="button" variant="secondary" aria-label={`删除标签 ${tag}`} onClick={() => setTags(current => current.filter(value => value !== tag))}>删除</Button></li>)}</ul></fieldset>
       <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
       {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
   </main>

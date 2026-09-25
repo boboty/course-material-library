@@ -13,6 +13,7 @@ export type Material = {
   courses: Course[]
   audience_types: Vocabulary[]
   industries: Vocabulary[]
+  tags: string[]
   status: string
   created_at: string
   updated_at: string
@@ -81,6 +82,7 @@ export type MaterialUpdate = {
   course_ids: string[]
   audience_type_ids: string[]
   industry_ids: string[]
+  tags: string[]
   status: string
 }
 

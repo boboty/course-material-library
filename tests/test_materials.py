@@ -120,6 +120,46 @@ def test_material_audience_and_industry_associations_replace_atomically(client: 
     assert cleared.json()["industries"] == []
 
 
+def test_material_tags_are_trimmed_deduplicated_and_replaceable(client: TestClient) -> None:
+    created = client.post("/api/v1/materials", json={
+        "title": f"虚构标签素材 {uuid4().hex}", "type": "故事", "body": "虚构正文",
+    })
+    assert created.status_code == 201
+    material_id = created.json()["id"]
+    assert created.json()["tags"] == []
+    url = f"/api/v1/materials/{material_id}"
+    base = {"title": created.json()["title"], "type": "故事",
+            "body": "虚构正文", "status": "草稿"}
+
+    updated = client.put(url, json={**base, "tags": [
+        "  复盘  ", "", "   ", "复盘", "故事", "故事 ",
+    ]})
+    assert updated.status_code == 200
+    assert updated.json()["tags"] == ["复盘", "故事"]
+    assert client.get(url).json()["tags"] == ["复盘", "故事"]
+
+    omitted = client.put(url, json={**base, "title": f"标签保留 {uuid4().hex}"})
+    assert omitted.status_code == 200
+    assert omitted.json()["tags"] == ["复盘", "故事"]
+
+    case_sensitive = client.put(url, json={**base, "tags": ["Topic", "topic"]})
+    assert case_sensitive.status_code == 200
+    assert case_sensitive.json()["tags"] == ["Topic", "topic"]
+
+    cleared = client.put(url, json={**base, "tags": []})
+    assert cleared.status_code == 200
+    assert cleared.json()["tags"] == []
+
+
+def test_existing_material_read_has_empty_tags_after_migration(client: TestClient) -> None:
+    created = client.post("/api/v1/materials", json={
+        "title": f"旧素材标签兼容 {uuid4().hex}", "type": "案例", "body": "虚构正文",
+    })
+    assert created.status_code == 201
+    assert created.json()["tags"] == []
+    assert client.get(f"/api/v1/materials/{created.json()['id']}").json()["tags"] == []
+
+
 def test_course_filter_combines_with_existing_filters_and_pagination(client: TestClient) -> None:
     marker = uuid4().hex
     first = create_course(client)
