@@ -19,6 +19,7 @@
 - Task 12: PASS
 - Task 13: PASS
 - Task 14: PASS
+- Task 15: PASS
 
 ## 已验收基线
 
@@ -40,7 +41,9 @@
 - Task 13 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 156 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 28 passed（含 1280px / 375px 类型 / 状态 / 正文关键词组合与超一页翻页保留条件），`git diff --check` 通过；审查确认 `type` 为 Literal 六值（空值、多值、未知值 422），`q` 为标题或正文 `ilike`，条件共同作用于 total 与分页，前端筛选变更回第一页且翻页保留全部条件；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；`q` 中 `%` / `_` 作为 LIKE 通配符的既有行为未处理（沿用原标题搜索）；smoke 脚本不覆盖列表筛选（由后端测试与 E2E 覆盖）。
 - Task 14 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 14 markdown bulk import`
 - Task 14 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 159 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 30 passed（含 1280px / 375px 导入与错误流程），`git diff --check` 通过；审查确认后端 `POST /api/v1/materials/import` 独立复验格式（空输入、缺标题、缺正文、前置文字、非 `## ` 标题均 422 `MARKDOWN_IMPORT_INVALID` 且零写入），`add_all` + 单次 commit，失败 rollback；触发器注入失败测试确认整批回滚；导入结果 `type=null`、草稿、允许同标题；前端解析规则与后端一致，错误时禁用导入；额外探测 CRLF 正常导入；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；标题超过 255 字符或正文含 NUL 字符时不做预校验，返回 500 `MATERIAL_IMPORT_FAILED`（整批回滚、零写入，提示较笼统）；围栏代码块内的 `## ` 会被当作标题、正文中以 `#` 开头的行（如 `#标签`）按格式错误拒绝，属固定严格格式的既有取舍；smoke 脚本不覆盖导入（由后端测试与 E2E 覆盖）。
-- Migration head: 0003_usages（单一 head）
+- Task 15 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 15 material core fields`
+- Task 15 独立验收时：隔离本机 PostgreSQL 16 实例；0003 库插入虚构旧素材后升级至 head，三新增字段为 NULL，downgrade / 再 upgrade 正常，`alembic heads` 单一 head `0004_material_core_fields`；`make check` 通过（ruff、pyright 0 errors、后端 160 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 30 passed（含 1280px / 375px 三字段编辑、清空、列表不展示来源备注），`git diff --check` 通过；审查确认 PUT 省略补充字段保留原值、空白 / null 归一化为 null 清空，四字段编辑与快速录入无回退，详情仅展示有值字段，Demo 数据 / 应用代码无 source_note 内容，日志测试确认来源备注值不入日志；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；`source_note` 随素材读取 API（含使用记录内嵌的素材）返回，仅前端详情 / 编辑页展示，属内部应用范围内的行为，V1 无字段级权限；smoke 脚本不覆盖 PUT。
+- Migration head: 0004_material_core_fields（单一 head）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -110,16 +113,19 @@
 
 ## 当前任务
 
-- Task 14：Markdown 批量导入 —— PASS（Independent Verifier 独立验收；证据见上方“Task 14 独立验收时”）。
-  - 施工前基线：Task 13 accepted baseline `fe68da975a0fa57b5ad849f5131d7d37aea6af9c`；Migration head `0003_usages`，本轮无 schema / migration 变更。
-  - 实现：素材列表增加批量导入入口与 `/materials/import` 页面；页面解析固定 `## 标题` 格式、显示有效条目数，明确提示空输入、缺标题、缺正文、前置正文及非二级标题格式错误，并禁用无效导入；后端复验格式并在一个数据库事务中创建全部草稿素材（`type=null`、同标题允许），失败时回滚全部写入；成功后显示数量并提供返回素材列表入口。
-  - 验证覆盖：单条 / 多条导入、中文 / 英文、首尾空白裁剪、缺标题、缺正文、空输入、错误标题格式、错误时零写入、数据库中途失败时全量回滚、同标题、草稿与空类型，以及 1280px / 375px 页面流程。
-  - Developer 自验：临时本机 PostgreSQL 17（`/private/tmp/cml-task14-pg.SoYL0E`，测试库 `benyan_test` / `benyan_e2e`）迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 159 passed、E2E DB 门禁、前端 14 passed、build）；`make smoke` 通过（health / not-found）；`make e2e` 30 passed（含本 Task 在 1280px / 375px 的导入与错误流程）；`git diff --check` 通过。
-  - 数据边界：验证只使用虚构文本、随机标记及临时测试数据库；未发现真实业务数据或 Secret；数据库中途失败测试使用临时触发器并在 finally 清理；本轮没有修改 `TASK_BOARD.md`，该文件施工前已有用户改动。
-  - 冻结判断：只接受行首精确 `## ` 作为素材标题；标题之后至下一标题的正文保留内部空白并裁剪首尾；输入中的任一坏块导致整批拒绝，不部分导入；所有导入结果均为草稿且 `type=null`。
-  - 未实现范围：文件上传、AI 拆分、类型推断、YAML / front matter、标签等扩展字段、去重与导入历史均按 Task 明确不做。
-  - 风险 / 限制：尚未在 Docker Compose 环境复测；AI self-check 不等于独立验收。
-  - 下一步：等待下一个 Task；push / merge 须人工授权。
+- Task 15：素材核心补充字段 —— PASS（Independent Verifier 独立验收）。
+  - 施工前基线：Task 14 accepted baseline `cfb8ec2`；原 Migration head `0003_usages`。
+  - 实现：新增可空文本字段 `supporting_judgment`、`speaking_notes`、`source_note`，Alembic migration `0004_material_core_fields` 为唯一 head；素材更新与读取 API 支持新字段，编辑页可修改 / 清空，详情页仅在字段有值时展示。快速录入仍只提交标题、类型、正文。
+  - 更新兼容：新增字段未出现在 PUT 请求时保留原值；明确传空白或 `null` 可清空。空白字段值归一化为 `null`。
+  - 内部信息边界：`source_note` 仅显示于编辑和详情页面，素材列表卡片不展示；Demo 数据与公开 fixture 不含来源备注内容；日志测试确认虚构来源备注值不进入应用日志。
+  - 验证覆盖：字段默认空值、分别更新 / 保留 / 清空、快速录入未变、详情只展示有值字段、素材列表 UI 不展示来源备注；1280px / 375px 编辑详情流程；基础素材编辑校验继续覆盖。
+  - Migration 兼容：隔离临时 PostgreSQL 17 库从 `0003_usages` 升级至 head；旧版插入的虚构素材保留可读，详情 API 返回 200，三个新增字段为 `null`；`alembic heads` 显示单一 head。
+  - Developer 自验：`make check` 通过（ruff、pyright 0 errors、后端 160 passed、E2E DB 安全门禁、前端 14 passed、build）；`make smoke` 通过（health / not-found）；`make e2e` 30 passed（包含本 Task 在 1280px / 375px 的字段编辑与清空）；`git diff --check` 通过。
+  - 数据边界：验证数据为虚构内容，仅用于临时 PostgreSQL 17 测试库；未发现真实业务数据或 Secret。原有用户修改 `TASK_BOARD.md` 未由本轮触碰。
+  - 冻结判断：三个补充字段均可空；快速录入不增加必填项；更新请求省略某个补充字段时保留该字段，显式空白 / null 用于清空；`source_note` 只出现在编辑与详情页面。
+  - 未实现范围：标签、适用人群 / 行业、案例类别、复核日期、Demo 最后验证日期、退役原因、素材家族、课程关系及字段搜索 / AI 生成均不属于本 Task。
+  - 风险 / 限制：未在 Docker Compose 环境复测；AI self-check 不等于独立验收。
+  - 独立验收：PASS，见上方 accepted baseline 与验收记录。
 
 ## 上一已验收任务摘要
 
@@ -134,4 +140,4 @@
 
 ## 下一步
 
-- 启动下一个 Task（先创建 Task 文件并更新 PROGRESS.md）；push / merge 须人工授权。
+- 按 Orchestrator 规划开始下一 Task；push / merge 须人工授权。

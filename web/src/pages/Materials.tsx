@@ -158,7 +158,11 @@ export function MaterialDetail() {
   const [material, setMaterial] = useState<Material | null>(null)
   const [error, setError] = useState('')
   useEffect(() => { getMaterial(id).then(setMaterial).catch(reason => setError(reason instanceof Error ? reason.message : '素材加载失败')) }, [id])
-  return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link>{error && <Callout tone="risk">{error}</Callout>}{!material && !error && <p className="result-count">素材加载中…</p>}{material && <><div className="by-eyebrow by-eyebrow--tick">素材详情</div><div className="detail-title"><h1>{material.title}</h1><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p className="by-lead">{material.type || '未填写类型'}</p><div className="detail-actions"><Link className="primary-link" to={`/materials/${material.id}/edit`}>编辑素材</Link></div><Card accent className="detail-body"><h2>正文</h2><p>{material.body || '尚未填写正文'}</p></Card></>}</main>
+  return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link>{error && <Callout tone="risk">{error}</Callout>}{!material && !error && <p className="result-count">素材加载中…</p>}{material && <><div className="by-eyebrow by-eyebrow--tick">素材详情</div><div className="detail-title"><h1>{material.title}</h1><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p className="by-lead">{material.type || '未填写类型'}</p><div className="detail-actions"><Link className="primary-link" to={`/materials/${material.id}/edit`}>编辑素材</Link></div><Card accent className="detail-body"><h2>正文</h2><p>{material.body || '尚未填写正文'}</p></Card>
+    {material.supporting_judgment && <Card accent className="detail-body"><h2>支撑什么判断</h2><p>{material.supporting_judgment}</p></Card>}
+    {material.speaking_notes && <Card accent className="detail-body"><h2>讲法要点</h2><p>{material.speaking_notes}</p></Card>}
+    {material.source_note && <Card accent className="detail-body"><h2>来源备注（仅内部可见）</h2><p>{material.source_note}</p></Card>}
+  </>}</main>
 }
 
 export function MaterialEdit() {
@@ -168,13 +172,20 @@ export function MaterialEdit() {
   const [title, setTitle] = useState('')
   const [type, setType] = useState('')
   const [body, setBody] = useState('')
+  const [supportingJudgment, setSupportingJudgment] = useState('')
+  const [speakingNotes, setSpeakingNotes] = useState('')
+  const [sourceNote, setSourceNote] = useState('')
   const [status, setStatus] = useState('草稿')
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
     getMaterial(id).then(material => {
-      setTitle(material.title); setType(material.type || ''); setBody(material.body || ''); setStatus(material.status); setLoaded(true)
+      setTitle(material.title); setType(material.type || ''); setBody(material.body || '')
+      setSupportingJudgment(material.supporting_judgment || '')
+      setSpeakingNotes(material.speaking_notes || '')
+      setSourceNote(material.source_note || '')
+      setStatus(material.status); setLoaded(true)
     }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
   }, [id])
   async function submit(event: FormEvent) {
@@ -182,7 +193,13 @@ export function MaterialEdit() {
     if (!title.trim()) { setError('标题不能为空'); return }
     if (status !== '草稿' && (!type || !body.trim())) { setError('非草稿素材必须填写类型和正文'); return }
     setSaving(true)
-    try { await updateMaterial(id, { title, type: type || null, body: body.trim() ? body : null, status }); navigate(`/materials/${id}`) }
+    try { await updateMaterial(id, {
+      title, type: type || null, body: body.trim() ? body : null,
+      supporting_judgment: supportingJudgment.trim() || null,
+      speaking_notes: speakingNotes.trim() || null,
+      source_note: sourceNote.trim() || null,
+      status,
+    }); navigate(`/materials/${id}`) }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
     finally { setSaving(false) }
   }
@@ -191,6 +208,9 @@ export function MaterialEdit() {
     {loaded && <Card accent className="form-card"><form onSubmit={submit} className="material-form" noValidate><label>标题<input required maxLength={255} value={title} onChange={event => setTitle(event.target.value)} /></label>
       <label>类型<select value={type} onChange={event => setType(event.target.value)}><option value="">未填写类型</option>{materialTypes.map(item => <option key={item}>{item}</option>)}</select></label>
       <label>正文<textarea rows={8} value={body} onChange={event => setBody(event.target.value)} /></label>
+      <label>支撑什么判断<textarea rows={4} value={supportingJudgment} onChange={event => setSupportingJudgment(event.target.value)} /></label>
+      <label>讲法要点<textarea rows={4} value={speakingNotes} onChange={event => setSpeakingNotes(event.target.value)} /></label>
+      <label>来源备注（仅内部可见）<textarea rows={4} value={sourceNote} onChange={event => setSourceNote(event.target.value)} /></label>
       <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
       {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
   </main>

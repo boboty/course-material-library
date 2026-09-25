@@ -150,6 +150,12 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
     material.title = payload.title
     material.type = payload.type
     material.body = payload.body
+    if "supporting_judgment" in payload.model_fields_set:
+        material.supporting_judgment = payload.supporting_judgment
+    if "speaking_notes" in payload.model_fields_set:
+        material.speaking_notes = payload.speaking_notes
+    if "source_note" in payload.model_fields_set:
+        material.source_note = payload.source_note
     material.status = payload.status
     await session.commit()
     await session.refresh(material)

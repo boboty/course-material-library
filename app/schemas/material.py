@@ -38,6 +38,9 @@ class MaterialUpdate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     type: str | None
     body: str | None
+    supporting_judgment: str | None = None
+    speaking_notes: str | None = None
+    source_note: str | None = None
     status: Literal["草稿", "可用", "主力", "待更新", "退役"]
 
     @field_validator("title")
@@ -62,6 +65,13 @@ class MaterialUpdate(BaseModel):
             raise ValueError("invalid material type")
         return value
 
+    @field_validator("supporting_judgment", "speaking_notes", "source_note")
+    @classmethod
+    def blank_optional_text_to_none(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        return value.strip() or None
+
 
 class MaterialMarkdownImport(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -80,6 +90,9 @@ class MaterialRead(BaseModel):
     title: str
     type: str | None
     body: str | None
+    supporting_judgment: str | None
+    speaking_notes: str | None
+    source_note: str | None
     status: str
     created_at: datetime
     updated_at: datetime

@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 from collections.abc import AsyncIterator, Iterator
 from uuid import UUID, uuid4
@@ -185,6 +186,61 @@ def test_invalid_type_filter_is_rejected(client: TestClient) -> None:
         response = client.get("/api/v1/materials", params={"type": material_type})
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_supplemental_fields_can_be_saved_updated_and_cleared(
+    client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    marker = uuid4().hex
+    monkeypatch.setattr(logging.getLogger("app"), "propagate", True)
+    caplog.set_level(logging.INFO, logger="app")
+    created = client.post("/api/v1/materials", json={
+        "title": f"虚构补充字段 {marker}", "type": "故事", "body": "虚构正文",
+    })
+    assert created.status_code == 201
+    material_id = created.json()["id"]
+    assert created.json()["supporting_judgment"] is None
+    assert created.json()["speaking_notes"] is None
+    assert created.json()["source_note"] is None
+
+    fields = {
+        "supporting_judgment": " 支撑虚构判断。 ",
+        "speaking_notes": " 先提问，再总结。 ",
+        "source_note": f"虚构内部来源 {marker}",
+    }
+    base = {"title": f"虚构补充字段 {marker}", "type": "故事",
+            "body": "虚构正文", "status": "草稿"}
+    saved = client.put(f"/api/v1/materials/{material_id}", json={**base, **fields})
+    assert saved.status_code == 200
+    assert {name: saved.json()[name] for name in fields} == {
+        "supporting_judgment": "支撑虚构判断。",
+        "speaking_notes": "先提问，再总结。",
+        "source_note": f"虚构内部来源 {marker}",
+    }
+
+    current = {name: saved.json()[name] for name in fields}
+    for name, value in (("supporting_judgment", "更新后的判断。"),
+                        ("speaking_notes", "更新后的讲法。"),
+                        ("source_note", "更新后的内部来源。")):
+        current[name] = value
+        updated = client.put(f"/api/v1/materials/{material_id}", json={**base, name: value})
+        assert updated.status_code == 200
+        assert updated.json()[name] == value
+        assert {field: updated.json()[field] for field in fields} == current
+
+    for name in fields:
+        current[name] = "   "
+        cleared = client.put(f"/api/v1/materials/{material_id}", json={**base, **current})
+        assert cleared.status_code == 200
+        assert cleared.json()[name] is None
+
+    detail = client.get(f"/api/v1/materials/{material_id}")
+    assert detail.status_code == 200
+    assert all(detail.json()[name] is None for name in fields)
+    listed = client.get("/api/v1/materials", params={"q": marker})
+    assert listed.status_code == 200
+    assert listed.json()["items"][0]["source_note"] is None
+    assert f"虚构内部来源 {marker}" not in caplog.text
 
 
 def test_markdown_import_creates_trimmed_drafts_atomically_and_allows_duplicate_titles(
@@ -423,7 +479,7 @@ def test_update_non_draft_requires_type_and_body(client: TestClient,
 
 @pytest.mark.parametrize("patch", [
     {"title": ""}, {"title": "   "}, {"title": "x" * 256}, {"type": "小说"}, {"status": "归档"},
-    {"status": None}, {"status": ""}, {"source_note": "多余字段"},
+    {"status": None}, {"status": ""}, {"unexpected_field": "多余字段"},
 ])
 def test_update_rejects_invalid_payload(client: TestClient, patch: dict[str, object]) -> None:
     material_id = _create(client, f"虚构非法 {uuid4().hex}")

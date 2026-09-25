@@ -30,6 +30,9 @@ class Material(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supporting_judgment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    speaking_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="草稿")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                    server_default=func.now())

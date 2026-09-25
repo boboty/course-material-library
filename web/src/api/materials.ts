@@ -3,6 +3,9 @@ export type Material = {
   title: string
   type: string | null
   body: string | null
+  supporting_judgment: string | null
+  speaking_notes: string | null
+  source_note: string | null
   status: string
   created_at: string
   updated_at: string
@@ -54,7 +57,15 @@ export async function importMaterials(markdown: string): Promise<{ count: number
   return response.json() as Promise<{ count: number }>
 }
 
-export type MaterialUpdate = { title: string; type: string | null; body: string | null; status: string }
+export type MaterialUpdate = {
+  title: string
+  type: string | null
+  body: string | null
+  supporting_judgment: string | null
+  speaking_notes: string | null
+  source_note: string | null
+  status: string
+}
 
 export async function updateMaterial(id: string, payload: MaterialUpdate): Promise<Material> {
   const response = await fetch(`/api/v1/materials/${encodeURIComponent(id)}`, {
