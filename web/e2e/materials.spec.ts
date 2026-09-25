@@ -18,6 +18,92 @@ test('quick create, search, open detail and survive refresh', async ({ page }) =
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
 })
 
+for (const width of [1280, 375]) {
+  test(`draft inbox filters, summarizes, edits and paginates at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const title = `虚构待补全 ${crypto.randomUUID()}`
+    const created = await page.request.post('/api/v1/materials', {
+      data: { title, type: '故事', body: '虚构草稿正文摘要。' },
+    })
+    expect(created.ok()).toBe(true)
+    const material = await created.json() as { id: string }
+    const enriched = await page.request.put(`/api/v1/materials/${material.id}`, {
+      data: {
+        title, type: '故事', body: '虚构草稿正文摘要。', status: '草稿',
+        supporting_judgment: '支撑虚构判断。', speaking_notes: '先提问，再归纳。',
+        source_note: '虚构内部来源备注。', tags: ['虚构标签'],
+      },
+    })
+    expect(enriched.ok()).toBe(true)
+    const publishedTitle = `虚构非草稿 ${crypto.randomUUID()}`
+    const published = await page.request.post('/api/v1/materials', {
+      data: { title: publishedTitle, type: '案例', body: '虚构可用素材正文' },
+    })
+    expect(published.ok()).toBe(true)
+    const publishedMaterial = await published.json() as { id: string }
+    const publishedUpdate = await page.request.put(`/api/v1/materials/${publishedMaterial.id}`, {
+      data: { title: publishedTitle, type: '案例', body: '虚构可用素材正文', status: '可用' },
+    })
+    expect(publishedUpdate.ok()).toBe(true)
+
+    await page.goto('/materials')
+    await page.getByRole('link', { name: '草稿待补全' }).click()
+    await expect(page).toHaveURL('/materials/drafts')
+    await expect(page.getByRole('link', { name: '草稿待补全' })).toHaveClass(/app-nav__link--active/)
+    await expect(page.getByRole('link', { name: '素材', exact: true })).not.toHaveClass(/app-nav__link--active/)
+    const card = page.locator('.draft-card').filter({ has: page.getByRole('heading', { name: title }) })
+    await expect(card).toBeVisible()
+    await expect(card.getByText('故事', { exact: true })).toBeVisible()
+    await expect(card.getByText('虚构草稿正文摘要。')).toBeVisible()
+    await expect(card.getByText('支撑虚构判断。')).toBeVisible()
+    await expect(card.getByText('先提问，再归纳。')).toBeVisible()
+    await expect(card.getByText('虚构内部来源备注。')).toBeVisible()
+    await expect(card.getByText('标签：虚构标签')).toBeVisible()
+    await expect(page.getByRole('heading', { name: publishedTitle })).toHaveCount(0)
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+
+    await card.getByRole('link', { name: '直接编辑' }).click()
+    await expect(page).toHaveURL(`/materials/${material.id}/edit`)
+    await expect(page.getByLabel('状态')).toHaveValue('草稿')
+    await page.getByLabel('状态').selectOption('可用')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page).toHaveURL(`/materials/${material.id}`)
+    await page.goto('/materials/drafts')
+    await expect(page.getByRole('heading', { name: title })).toHaveCount(0)
+
+    for (let index = 0; index < 21; index += 1) {
+      const draftResponse = await page.request.post('/api/v1/materials', {
+        data: { title: `虚构待补全分页 ${index} ${crypto.randomUUID()}`, type: '金句', body: '虚构分页正文' },
+      })
+      expect(draftResponse.ok()).toBe(true)
+    }
+    await page.goto('/materials/drafts')
+    const pageOne = await page.request.get('/api/v1/materials?status=%E8%8D%89%E7%A8%BF&page=1&page_size=20')
+    const pageTwo = await page.request.get('/api/v1/materials?status=%E8%8D%89%E7%A8%BF&page=2&page_size=20')
+    const one = await pageOne.json() as { items: Array<{ title: string }>; total: number }
+    const two = await pageTwo.json() as { items: Array<{ title: string }> }
+    expect(one.total).toBeGreaterThan(20)
+    await expect(page.locator('.draft-card h2')).toHaveText(one.items.map(item => item.title))
+    await page.getByRole('button', { name: '下一页' }).click()
+    await expect(page).toHaveURL('/materials/drafts?page=2')
+    await expect(page.locator('.draft-card h2')).toHaveText(two.items.map(item => item.title))
+  })
+}
+
+test('draft inbox shows an empty state when there are no drafts', async ({ page }) => {
+  await page.route('**/api/v1/materials?*', async route => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('status') === '草稿') {
+      await route.fulfill({ json: { items: [], page: 1, page_size: 20, total: 0 } })
+    } else {
+      await route.continue()
+    }
+  })
+  await page.goto('/materials/drafts')
+  await expect(page.getByText('当前没有待补全的草稿。新素材保存后会出现在这里。')).toBeVisible()
+  await expect(page.getByRole('link', { name: '快速录入' })).toBeVisible()
+})
+
 test('same title warns but still allows saving another material', async ({ page }) => {
   const title = `虚构同标题 ${crypto.randomUUID()}`
   await page.goto('/materials/new')

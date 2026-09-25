@@ -112,6 +112,54 @@ export function MaterialList() {
   </main>
 }
 
+export function DraftMaterials() {
+  const [params, setParams] = useSearchParams()
+  const page = Math.max(1, Number(params.get('page') || '1') || 1)
+  const [result, setResult] = useState<MaterialPage | null>(null)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    setResult(null)
+    setError('')
+    listMaterials('', page, '草稿')
+      .then(data => { if (active) setResult(data) })
+      .catch(() => { if (active) setError('草稿列表加载失败') })
+    return () => { active = false }
+  }, [page])
+
+  const changePage = (nextPage: number) => setParams(nextPage === 1 ? {} : { page: String(nextPage) })
+
+  return <main className="material-page by-container">
+    <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">素材整理</div><h1>草稿待补全</h1><p className="by-lead">先记下来，再按需要补充素材信息。</p></div><div className="detail-actions"><Link className="primary-link" to="/materials/new">快速录入</Link></div></header>
+    {error && <Callout tone="risk">{error}</Callout>}
+    {!result && !error && <p className="result-count">草稿加载中…</p>}
+    {result && <>
+      <p className="result-count">共 {result.total} 条草稿</p>
+      {result.items.length > 0 ? <div className="material-grid draft-grid">
+        {result.items.map(material => <Card key={material.id} accent className="draft-card">
+          <div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div>
+          <p className="draft-card__type">{material.type || '未填写类型'}</p>
+          <p className={material.body?.trim() ? 'material-excerpt' : 'material-excerpt material-excerpt--empty'}>{material.body?.trim() || '尚未填写正文'}</p>
+          {(material.supporting_judgment || material.speaking_notes || material.source_note) && <dl className="draft-card__details">
+            {material.supporting_judgment && <><dt>支撑判断</dt><dd>{material.supporting_judgment}</dd></>}
+            {material.speaking_notes && <><dt>讲法要点</dt><dd>{material.speaking_notes}</dd></>}
+            {material.source_note && <><dt>来源备注（仅内部）</dt><dd>{material.source_note}</dd></>}
+          </dl>}
+          {(material.tags.length > 0 || material.audience_types.length > 0 || material.industries.length > 0 || material.courses.length > 0) && <p className="draft-card__meta">
+            {material.tags.length > 0 && <span>标签：{material.tags.join('、')}</span>}
+            {material.audience_types.length > 0 && <span>人群：{material.audience_types.map(item => item.name).join('、')}</span>}
+            {material.industries.length > 0 && <span>行业：{material.industries.map(item => item.name).join('、')}</span>}
+            {material.courses.length > 0 && <span>课程：{material.courses.map(item => item.name).join('、')}</span>}
+          </p>}
+          <div className="detail-actions"><Link className="secondary-link" to={`/materials/${material.id}/edit`}>直接编辑</Link></div>
+        </Card>)}
+      </div> : <p className="draft-empty">当前没有待补全的草稿。新素材保存后会出现在这里。</p>}
+      <nav className="pager" aria-label="草稿分页"><Button variant="secondary" disabled={page <= 1} onClick={() => changePage(page - 1)}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => changePage(page + 1)}>下一页</Button></nav>
+    </>}
+  </main>
+}
+
 type ImportParse = { items: Array<{ title: string; body: string }>; error: string }
 
 function parseMarkdownForImport(markdown: string): ImportParse {

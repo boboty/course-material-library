@@ -31,6 +31,7 @@
 - Task 24: PASS
 - Task 25: PASS
 - Task 26: PASS
+- Task 27: PASS
 
 ## 已验收基线
 
@@ -67,6 +68,7 @@
 - Task 21 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 21 material tags`
 - Task 22 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 22 material audience industry tag filters`
 - Task 26 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 26 review overdue and consecutive bad usage alerts`（以该 commit 为准，不使用 HEAD）
+- Task 27 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 27 draft inbox`（以该 commit 为准，不使用 HEAD）
 - Task 25 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 25 material review demo case retirement fields`
 - Task 23 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 23 material family source relationship`
 - Task 23 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55451，`benyan_test` / `benyan_e2e`，验收后停止并删除；未使用 .env 远程库与 5432 实例），迁移至单一 head `0008_material_source`；`make check` 通过（ruff、pyright 0 errors、后端 169 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 45 passed（含 1280px / 375px 源素材归根、清除、详情成员），`git diff --check` 通过。完整 diff 审查并用 API 探测确认：自引用 422 `MATERIAL_SOURCE_INVALID`（另有 DB check constraint）；不存在的源素材 422 `MATERIAL_SOURCE_NOT_FOUND`；选择已有子素材作为目标时归一到其家族根；选择当前家族成员（会成环）422；PUT 省略保留关系、显式 null 清除；带成员的根迁入另一家族时直系成员同事务重挂到目标根，全程保持单层、无环；详情返回源素材与同家族成员；旧素材（迁移后 source 为空）为独立家族；不复制其他字段、不合并 usage；`/family-candidates` 位于 `/{id}` 之前。未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；候选接口一次返回全部素材 ID / 标题，规模未评估；重复使用检查按家族归并属后续 Task（本 Task 仅提供关系）；smoke 脚本不覆盖 PUT。
@@ -153,7 +155,7 @@
 
 ## 当前任务
 
-- 无进行中的 Task。Task 26 已 PASS；下一个为 Task 27（草稿待补全）。
+- 无进行中的 Task。Task 27 已 PASS；下一个为 Task 28（V1 全链路验收与产品收口）。
 
 ## 上一已验收任务摘要
 
@@ -164,7 +166,7 @@
 
 ## 下一步
 
-- 由 Orchestrator 推进 Task 27（当前为草稿，需先补全 Task 文件）。
+- 由 Orchestrator 推进 Task 28。
 
 ## Task 22 施工与验证
 
@@ -239,3 +241,21 @@
 - 证据：隔离临时 PostgreSQL 17 集群（localhost:57626，验收后停止并删除；未使用 .env 远程库）。`make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`E2E_POSTGRES_DB=task26_indep_e2e make e2e` 51 passed（含 1280px / 375px 到期筛选、连续差提示、两次场次信息、无横向溢出），`git diff --check` 通过。完整 diff 审查确认：`review_date < 今天` 才过期，当日 / 未来 / 空日期均不过期；连续差以窗口函数取该素材按场次日期最近的两条“已用”记录，两条均为“差”才命中，计划 / 未用被排除；最近一条为“好”或“未评”都会中断，“未评”不被当作一般也不被跳过；提示按最近到较早展示日期、人群、客户、课程；`alert` 为 Literal 三值（其余 422），筛选与其他条件共同作用于 total 与分页；提示只读，不改素材状态；入口为素材列表预设筛选，无独立关注面板；无 schema / migration 变更（head 仍 `0009_material_fields`）；未发现真实业务数据或 Secret。
 - 限制：未在 Docker Compose 复测；“过期”按服务进程本地日期；同日多场次以 usage.updated_at、id 作次序兜底；高使用记录规模下列表查询性能未评估。
 - accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 26 review overdue and consecutive bad usage alerts`（以该 commit 为准，不使用 HEAD）。
+
+## Task 27 施工状态
+
+- 当前状态：PASS（见下方 Task 27 独立验收）。新增独立的“草稿待补全”入口和导航；素材卡片可直接进入编辑。
+- 实际完成：页面仅请求 `status=草稿`，复用素材列表现有稳定时间倒序（`created_at DESC, id DESC`）与 20 条分页契约；显示标题、类型、最多两行正文摘要，以及已有支撑判断、讲法要点、仅内部来源备注、标签、人群、行业和课程。可从空态直接进入快速录入；编辑后状态改为非草稿时，因同一查询只取草稿，该素材会从该入口消失。快速录入字段与保存行为未改。
+- Migration / schema / API：无数据库 schema、migration 或 API 变更；Alembic head 仍为 `0009_material_fields`。
+- 验证：最终 `make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E 数据库安全门禁、前端 lint / typecheck、Vitest 14 passed、production build）；`make smoke` 通过（health 200 / X-Request-ID、404 错误 JSON / X-Request-ID）；`E2E_POSTGRES_DB=task27_final_e2e make e2e` 在新隔离库迁移至 head 后通过（54 passed，含草稿入口、摘要 / 补充信息、编辑后移出、分页顺序、空态及 1280px / 375px）；最终 `git diff --check` 通过。
+- 冻结判断：待补全列表严格按素材状态过滤；排序沿用现有稳定时间顺序；页面不增加完成度、评分、提醒或自动补全文案；草稿快速录入门槛保持不变。
+- 已知限制 / 待验收：未在 Docker Compose 环境复测。复用 `task27_release_e2e` 数据库的第二次完整 E2E 曾有一项既有素材家族关系清除断言失败；首次运行和全新隔离库复跑均 54 passed，失败原因未确认，Independent Verifier 可留意。
+- 下一步：Independent Verifier 独立审查 Task 27 并记录验收状态；Developer 未写入 PASS、accepted baseline，未提交代码；保留 Orchestrator 管理的 `TASK_BOARD.md` 与 `RUN_LOG.md` 改动。
+
+## Task 27 独立验收
+
+- 结论：PASS（全新 Independent Verifier 会话，Claude `claude-sonnet-5`）。
+- 证据：隔离临时 PostgreSQL 17 集群（localhost:57627，验收后停止并删除；未使用 .env 远程库），`benyan_test` 迁移至 head。`make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，全新隔离库 `make e2e` 54 passed（含草稿入口 / 导航高亮、仅草稿、摘要与已有支撑判断 / 讲法要点 / 内部来源备注 / 标签、直接编辑改状态后移出、21 条草稿翻页与 API 页序一致、空态、1280px / 375px 无横向溢出），`git diff --check` 通过。代码审查确认：页面仅以 `status=草稿` 调用既有列表 API，排序沿用后端 `created_at DESC, id DESC` 与 20 条分页，无推荐分数、评分、批量或提醒；`/materials` 导航加 `end` 避免与 `/materials/drafts` 同时高亮；快速录入页面与 API 未改；无 schema / migration / API 变更（head 仍 `0009_material_fields`）；未发现真实业务数据或 Secret。
+- Developer 报告的复用库 E2E 素材家族断言失败已独立核查：在复用同一 E2E 库时可重现（本次多次复跑约半数出现 1–3 项失败，失败点为 Task 23 “清除源素材关系”与 Task 25 “清空 Demo 日期”两个既有用例：点击保存后仅以标题 heading 判断完成，随即读取 API，与保存请求存在竞态）。在不含 Task 27 改动的干净 HEAD（47d4efb）worktree 上同样复用库可重现（4 次运行中 3 次失败），因此为既有测试稳定性问题，与 Task 27 无关；全新库 / 单次运行通过。风险：复用 E2E 库的 `make e2e` 存在既有偶发失败，建议 Task 28 前后另行加固相关断言（等待保存完成后再读 API）；本 Task 未修改这些用例。
+- 限制：未在 Docker Compose 复测；草稿列表页码越界（如最后一页素材被全部移出后仍停留 page=2）显示空态而非自动回退；空态下仍显示分页控件；分页仍基于 offset。
+- accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 27 draft inbox`（以该 commit 为准，不使用 HEAD）。

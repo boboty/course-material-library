@@ -2,7 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 import { AppLayout } from './AppLayout'
 import { CourseForm, CourseList } from '../pages/Courses'
 import { CustomerForm, CustomerList } from '../pages/Customers'
-import { MaterialCreate, MaterialDetail, MaterialEdit, MaterialImport, MaterialList } from '../pages/Materials'
+import { DraftMaterials, MaterialCreate, MaterialDetail, MaterialEdit, MaterialImport, MaterialList } from '../pages/Materials'
 import { SessionCreate, SessionDetail, SessionList } from '../pages/Sessions'
 import { SessionMaterials } from '../pages/SessionMaterials'
 import { PostClass } from '../pages/PostClass'
@@ -14,6 +14,7 @@ export function AppRouter() {
   return <AppLayout><Routes>
     <Route path="/" element={<Navigate to="/materials" replace />} />
     <Route path="/materials" element={<MaterialList />} />
+    <Route path="/materials/drafts" element={<DraftMaterials />} />
     <Route path="/materials/new" element={<MaterialCreate />} />
     <Route path="/materials/import" element={<MaterialImport />} />
     <Route path="/materials/:id/edit" element={<MaterialEdit />} />
