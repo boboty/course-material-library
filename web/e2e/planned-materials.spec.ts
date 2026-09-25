@@ -57,8 +57,16 @@ async function recordActualUsage(page: Page, sessionId: string, materialId: stri
 
 async function associateWithCourse(page: Page, materialId: string, courseName: string) {
   await page.goto(`/materials/${materialId}/edit`)
-  await page.getByLabel(courseName, { exact: true }).check()
+  const course = page.getByLabel(courseName, { exact: true })
+  await course.check()
+  await expect(course).toBeChecked()
+  const saved = page.waitForResponse(response =>
+    response.url().endsWith(`/api/v1/materials/${materialId}`)
+    && response.request().method() === 'PUT'
+    && response.status() === 200)
   await page.getByRole('button', { name: '保存修改' }).click()
+  const response = await saved
+  expect((await response.json()).courses.map((item: { name: string }) => item.name)).toContain(courseName)
   await expect(page).toHaveURL(new RegExp(`/materials/${materialId}$`))
 }
 
@@ -168,6 +176,11 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 900 }, { name: '
     await expect(rows.filter({ hasText: relatedA })).toHaveCount(1)
     await expect(rows.filter({ hasText: unrelated })).toHaveCount(1)
     await expect(rows.filter({ hasText: relatedB })).toHaveCount(1)
+    await expect.poll(async () => {
+      const titles = await rows.allTextContents()
+      return titles.findIndex(text => text.includes(relatedA)) < titles.findIndex(text => text.includes(unrelated))
+        && titles.findIndex(text => text.includes(relatedB)) < titles.findIndex(text => text.includes(unrelated))
+    }).toBe(true)
     const defaultTitles = await rows.allTextContents()
     expect(defaultTitles.findIndex(text => text.includes(relatedA))).toBeLessThan(defaultTitles.findIndex(text => text.includes(unrelated)))
     expect(defaultTitles.findIndex(text => text.includes(relatedB))).toBeLessThan(defaultTitles.findIndex(text => text.includes(unrelated)))
@@ -180,6 +193,11 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 900 }, { name: '
     await expect(rows.filter({ hasText: relatedA })).toHaveCount(1)
     await expect(rows.filter({ hasText: unrelated })).toHaveCount(1)
     await expect(rows.filter({ hasText: relatedB })).toHaveCount(1)
+    await expect.poll(async () => {
+      const titles = await rows.allTextContents()
+      return titles.findIndex(text => text.includes(relatedA)) < titles.findIndex(text => text.includes(unrelated))
+        && titles.findIndex(text => text.includes(relatedB)) < titles.findIndex(text => text.includes(unrelated))
+    }).toBe(true)
     const searchedTitles = await rows.allTextContents()
     expect(searchedTitles.findIndex(text => text.includes(relatedA))).toBeLessThan(searchedTitles.findIndex(text => text.includes(unrelated)))
     expect(searchedTitles.findIndex(text => text.includes(relatedB))).toBeLessThan(searchedTitles.findIndex(text => text.includes(unrelated)))

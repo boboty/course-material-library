@@ -16,11 +16,11 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## IN PROGRESS
 
-- Task 27 — 草稿待补全
+- Task 28 — V1 全链路验收与产品收口
 
 ## READY
 
-- Task 28 — V1 全链路验收与产品收口
+- 无
 
 ## BLOCKED
 
@@ -28,6 +28,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 27
 - Task 26
 - Task 25
 - Task 24

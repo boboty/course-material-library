@@ -32,6 +32,7 @@
 - Task 25: PASS
 - Task 26: PASS
 - Task 27: PASS
+- Task 28: PASS（V1 已验收）
 
 ## 已验收基线
 
@@ -68,6 +69,7 @@
 - Task 21 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 21 material tags`
 - Task 22 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 22 material audience industry tag filters`
 - Task 26 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 26 review overdue and consecutive bad usage alerts`（以该 commit 为准，不使用 HEAD）
+- Task 28 / V1 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 28 v1 acceptance`（以该 commit 为准，不使用 HEAD）
 - Task 27 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 27 draft inbox`（以该 commit 为准，不使用 HEAD）
 - Task 25 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 25 material review demo case retirement fields`
 - Task 23 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 23 material family source relationship`
@@ -155,7 +157,7 @@
 
 ## 当前任务
 
-- 无进行中的 Task。Task 27 已 PASS；下一个为 Task 28（V1 全链路验收与产品收口）。
+- 无进行中 Task。Task 28 已 PASS，V1 已验收；后续工作以 V2 候选及 Task 28 记录的限制为输入，需先经产品定义确认。
 
 ## 上一已验收任务摘要
 
@@ -166,7 +168,7 @@
 
 ## 下一步
 
-- 由 Orchestrator 推进 Task 28。
+- V1 收口完成。下一步由产品负责人决定：真实数据进入网络部署前的最小单用户认证、真人 5 分钟课后登记观察、后续候选（见 Task 28 独立验收限制）。
 
 ## Task 22 施工与验证
 
@@ -259,3 +261,25 @@
 - Developer 报告的复用库 E2E 素材家族断言失败已独立核查：在复用同一 E2E 库时可重现（本次多次复跑约半数出现 1–3 项失败，失败点为 Task 23 “清除源素材关系”与 Task 25 “清空 Demo 日期”两个既有用例：点击保存后仅以标题 heading 判断完成，随即读取 API，与保存请求存在竞态）。在不含 Task 27 改动的干净 HEAD（47d4efb）worktree 上同样复用库可重现（4 次运行中 3 次失败），因此为既有测试稳定性问题，与 Task 27 无关；全新库 / 单次运行通过。风险：复用 E2E 库的 `make e2e` 存在既有偶发失败，建议 Task 28 前后另行加固相关断言（等待保存完成后再读 API）；本 Task 未修改这些用例。
 - 限制：未在 Docker Compose 复测；草稿列表页码越界（如最后一页素材被全部移出后仍停留 page=2）显示空态而非自动回退；空态下仍显示分页控件；分页仍基于 offset。
 - accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 27 draft inbox`（以该 commit 为准，不使用 HEAD）。
+
+## Task 28 施工状态
+
+- 当前状态：PASS（见下方 Task 28 独立验收）。
+- 实际走查：以全量浏览器 E2E 路径覆盖快速录入、素材编辑与 Markdown 导入、标题/正文/标签搜索、类型/课程/人群/行业/状态筛选、家族关系、客户/课程/词表/场次、课程优先和全库可选、同客户/同集团使用提醒、课后登记已用/未用/好/差/未评/现场加入已有素材/临时建草稿、复核过期/连续两次差、草稿待补全。系统提示不改变人工状态、使用记录保存后读回一致。
+- 375px 实测：完整登记路径覆盖计划素材改效果与未用、现场加入已有素材并记差、临时新建草稿、离页未保存检查、显式保存后逐条读回和无横向溢出。浏览器自动化从进入登记页到保存并读回耗时 429ms；该数值是自动化执行耗时，不代表真实使用者的人工操作耗时，未做真人计时观察。
+- Migration / schema：无 schema 或 migration 变更；Alembic 单一 head 仍为 `0009_material_fields`。隔离空库升级至 head；含虚构旧素材的 `0008_material_source` 数据库升级至 head 后，旧素材仍存在，旧标签为 `{}`，新增日期/类别字段为空。
+- Compose / Demo / host dev：使用新建隔离项目 `task28` 和全新 `task28_postgres_data` volume 构建启动；db healthy 后 app 日志出现 `Alembic migration completed`，健康 API 为 200。宿主机 `make dev` 指向隔离数据库启动成功，health 与素材 API 可读。Demo seed 写入 7 素材、3 客户、3 场次、8 使用记录；clean 后素材/客户/场次/使用记录均为 0，alembic 版本保留在 head。验证完成后已停止隔离容器并保留其 volume；未触碰 `.env` 指向的库与 Orchestrator 的 `TASK_BOARD.md` / `RUN_LOG.md` 改动。
+- 本轮修复：为素材编辑页异步加载增加 active guard，卸载或已过期的加载响应不再覆盖当前编辑状态；在 React StrictMode 双重 effect 和大候选集下，复用 E2E 库可复现旧响应重置新表单状态，修复后复用库全量流程通过。加固 E2E 保存响应、请求体和读回断言，并等待课程候选排序条件成立；375px 课后登记覆盖扩充为完整闭环。无 V2 扩展或产品语义改变。
+- 验证：`make check` 通过（Ruff、Pyright 0 errors、后端 175 passed、E2E DB 安全门禁、前端 lint/typecheck、Vitest 14 passed、production build）；`make smoke` 通过（health 200 / X-Request-ID、404 错误 JSON）；`make e2e` 在复用隔离 E2E 库通过 54 passed；`git diff --check` 通过。Compose 空库及旧数据升级、Demo seed/clean 和宿主机 `make dev` 已实测。
+- 非阻断限制：375px 用时目前只有自动化执行耗时，真人的 5 分钟目标仍待真实使用观察；未评估极大素材/课程/使用记录规模性能；未对真实业务数据或生产环境操作。
+- 下一步：Independent Verifier 独立检查 Task 28 交付、全链路证据、隔离 Compose/migration/Demo 和复用库 E2E 稳定性，按规则决定 PASS 或 RC 并记录验收证据；Verifier 之前不更新 accepted baseline。
+
+## Task 28 独立验收（V1 PASS）
+
+- 结论：**V1 PASS**（全新 Independent Verifier 会话，Claude `claude-sonnet-5`）。
+- 证据：自建隔离 PostgreSQL 17 集群（localhost:57628，验收后停止删除；未使用 `.env` 指向的远程库，也未使用机器上残留的旧集群）。`make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E 数据库门禁、前端 Vitest 14 passed、build），`make smoke` 通过，`git diff --check` 通过。复用同一隔离 E2E 库连续 3 次 `make e2e` 均为 54 passed、0 失败（Task 27 记录中该场景约半数失败），确认竞态断言加固与 `MaterialEdit` 异步加载 active guard 有效。E2E 覆盖 1280px / 375px 的录入、编辑、Markdown 导入、标题 / 正文 / 标签搜索、类型 / 课程 / 人群 / 行业 / 状态筛选、素材家族、场次备课与课程优先、同客户 / 同集团提醒、课后登记（已用 / 未用 / 好 / 差 / 未评 / 临时加入已有素材 / 临时新建草稿）、复核过期与连续两次差提示、草稿待补全，且系统提示不改变人工状态。
+- 迁移与交付：空库升级至单一 head `0009_material_fields`；`0008` 库插入虚构旧素材后升级至 head，旧素材保留、`tags={}`、新增字段为空，downgrade 再 upgrade 正常。Demo seed 得 7 素材 / 3 客户 / 3 场次 / 8 使用记录，clean 后全为 0 且版本保持 head。Docker Compose 使用新项目名与全新 volume `up -d --build --wait`：db healthy → 日志 `Alembic migration completed` → app healthy，`alembic_version=0009_material_fields`，健康 API 200，SPA 路由 200，POST 素材成功；验证后 `down -v` 并删除镜像。宿主机 `make dev` 指向隔离库：health、素材 API 与 SPA 路由（经 Vite 代理）均正常。
+- 代码审查：本轮 diff 仅含 `Materials.tsx` 编辑页 active guard（卸载 / 过期响应不覆盖表单）及三个 E2E 文件断言加固与 375px 课后登记扩充；无 schema / migration / API / 产品语义变化，无 V2 扩展；未发现真实业务数据或 Secret。
+- 关于“5 分钟内完成课后登记”：仅可验证 375px 下完整登记路径可用、无横向溢出、保存与读回正确；浏览器自动化耗时 375–441ms 只是脚本执行时间，不构成真人 5 分钟证据（Developer 报告 429ms 同理）。该产品目标的真人计时未验证，作为限制记录，不阻断 PASS。未观察到阻断性摩擦点：登记页保存区 sticky、单次显式保存、离页不产生半成品。
+- 限制：Compose 重启后的数据持久化本轮未重复实测（Task 6 已验收，本轮 curl 读回因未编码中文参数失败，非系统问题）；未评估大规模数据性能；未做真人计时与真实使用观察；认证尚未实现，真实业务数据进入网络部署前仍须先完成最小单用户认证（既有冻结判断）；既有非阻断限制（分页 offset 非快照一致、草稿页码越界显示空态等）不变。
+- accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 28 v1 acceptance`（以该 commit 为准，不使用 HEAD）。

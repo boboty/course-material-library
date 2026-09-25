@@ -319,7 +319,9 @@ export function MaterialEdit() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
+    let active = true
     Promise.all([getMaterial(id), listAllCourses(), listAllAudienceTypes(), listAllIndustries(), listMaterialFamilyCandidates()]).then(([material, allCourses, allAudienceTypes, allIndustries, allMaterials]) => {
+      if (!active) return
       setTitle(material.title); setType(material.type || ''); setBody(material.body || '')
       setSupportingJudgment(material.supporting_judgment || '')
       setSpeakingNotes(material.speaking_notes || '')
@@ -335,7 +337,10 @@ export function MaterialEdit() {
       setSourceMaterialId(material.source_material_id || '')
       setMaterials(allMaterials.filter(candidate => candidate.id !== id))
       setStatus(material.status); setLoaded(true)
-    }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
+    }).catch(reason => {
+      if (active) setLoadError(reason instanceof Error ? reason.message : '素材加载失败')
+    })
+    return () => { active = false }
   }, [id])
   async function submit(event: FormEvent) {
     event.preventDefault(); setError('')

@@ -133,33 +133,83 @@ test('375px registration controls remain usable without horizontal scrolling', a
     audience_type_ids: [audience.id], duration: '一天',
   } })).json()
   const sessionId = teaching.id
+  const plannedMaterials = await Promise.all(['计划素材甲', '计划素材乙'].map(async name => {
+    const response = await page.request.post('/api/v1/materials', { data: {
+      title: `${name} ${crypto.randomUUID()}`, type: '故事', body: '虚构课后登记素材。',
+    } })
+    expect(response.ok()).toBe(true)
+    return response.json() as Promise<{ id: string; title: string }>
+  }))
+  const plannedUsages = await Promise.all(plannedMaterials.map(async material => {
+    const response = await page.request.post(`/api/v1/sessions/${sessionId}/usages`, {
+      data: { material_id: material.id },
+    })
+    expect(response.ok()).toBe(true)
+    return response.json() as Promise<{ id: string }>
+  }))
   const existing = unique('虚构手机已有素材')
-  await page.request.post('/api/v1/materials', { data: {
+  const existingMaterial = await (await page.request.post('/api/v1/materials', { data: {
     title: existing, type: '故事', body: '虚构素材正文。',
-  } })
-  await page.goto(`/sessions/${sessionId}/post-class`)
-  await page.getByLabel('搜索素材标题').fill(existing)
-  await page.getByRole('button', { name: '搜索' }).click()
-  await page.getByRole('listitem').filter({ hasText: existing })
-    .getByRole('button', { name: '加入本场' }).click()
+  } })).json() as { id: string }
   const newTitle = unique('虚构手机素材')
-  await page.getByLabel('素材标题', { exact: true }).fill(newTitle)
-  await page.getByRole('button', { name: '加入草稿' }).click()
-  await page.goto(`/sessions/${sessionId}`)
-  expect(await (await page.request.get(`/api/v1/sessions/${sessionId}/usages`)).json()).toEqual([])
-  expect((await (await page.request.get(`/api/v1/materials?title=${encodeURIComponent(newTitle)}`)).json()).total).toBe(0)
+  async function addTemporaryMaterials() {
+    await page.getByLabel('搜索素材标题').fill(existing)
+    await page.getByRole('button', { name: '搜索' }).click()
+    await page.getByRole('listitem').filter({ hasText: existing })
+      .getByRole('button', { name: '加入本场' }).click()
+    await page.getByLabel('素材标题', { exact: true }).fill(newTitle)
+    await page.getByRole('button', { name: '加入草稿' }).click()
+  }
+
+  // Verify that in-page additions stay unsaved until the explicit save action.
   await page.goto(`/sessions/${sessionId}/post-class`)
-  await page.getByLabel('搜索素材标题').fill(existing)
-  await page.getByRole('button', { name: '搜索' }).click()
-  await page.getByRole('listitem').filter({ hasText: existing })
-    .getByRole('button', { name: '加入本场' }).click()
-  await page.getByLabel('素材标题', { exact: true }).fill(newTitle)
-  await page.getByRole('button', { name: '加入草稿' }).click()
+  await addTemporaryMaterials()
+  await page.goto(`/sessions/${sessionId}`)
+  expect((await (await page.request.get(`/api/v1/sessions/${sessionId}/usages`)).json()))
+    .toHaveLength(plannedUsages.length)
+  expect((await (await page.request.get(`/api/v1/materials?title=${encodeURIComponent(newTitle)}`)).json()).total).toBe(0)
+
+  const startedAt = Date.now()
+  await page.goto(`/sessions/${sessionId}/post-class`)
+  const cardPlannedA = page.locator('.post-class-card').filter({ hasText: plannedMaterials[0].title })
+  const cardPlannedB = page.locator('.post-class-card').filter({ hasText: plannedMaterials[1].title })
+  await cardPlannedA.getByLabel('效果').selectOption('好')
+  await cardPlannedA.getByLabel('现场反应').fill('虚构反馈，讨论主动。')
+  await cardPlannedB.getByLabel('使用状态').selectOption('未用')
+  await addTemporaryMaterials()
+  const cardExisting = page.locator('.post-class-card').filter({ hasText: existing })
+  await cardExisting.getByLabel('效果').selectOption('差')
+  await cardExisting.getByLabel('现场反应').fill('虚构反馈，节奏需要调整。')
+  const cardNew = page.locator('.post-class-card').filter({ hasText: newTitle })
+  await expect(cardNew.getByLabel('使用状态')).toHaveValue('已用')
+  await expect(cardNew.getByLabel('效果')).toHaveValue('未评')
   // 长页面滚动到顶部后，保存动作仍应停在视口内（sticky 保存区）
   const saveButton = page.getByRole('button', { name: '保存课后登记' })
   await page.evaluate(() => window.scrollTo(0, 0))
   await expect(saveButton).toBeInViewport()
+  const savedResponse = page.waitForResponse(response =>
+    response.url().endsWith(`/api/v1/sessions/${sessionId}/post-class`)
+    && response.request().method() === 'PUT'
+    && response.status() === 200)
   await saveButton.click()
+  await savedResponse
   await expect(page.getByText('课后登记已保存')).toBeVisible()
+  const persisted = await (await page.request.get(`/api/v1/sessions/${sessionId}/usages`)).json() as Array<{
+    material_id: string; status: string; effect: string; reaction: string | null
+  }>
+  const byMaterial = Object.fromEntries(persisted.map(usage => [usage.material_id, usage]))
+  expect([byMaterial[plannedMaterials[0].id].status, byMaterial[plannedMaterials[0].id].effect,
+    byMaterial[plannedMaterials[0].id].reaction]).toEqual(['已用', '好', '虚构反馈，讨论主动。'])
+  expect([byMaterial[plannedMaterials[1].id].status, byMaterial[plannedMaterials[1].id].effect,
+    byMaterial[plannedMaterials[1].id].reaction]).toEqual(['未用', '未评', null])
+  expect([byMaterial[existingMaterial.id].status, byMaterial[existingMaterial.id].effect,
+    byMaterial[existingMaterial.id].reaction]).toEqual(['已用', '差', '虚构反馈，节奏需要调整。'])
+  const createdDraft = await page.request.get(`/api/v1/materials?title=${encodeURIComponent(newTitle)}`)
+  const draftResult = await createdDraft.json() as { items: Array<{ id: string; status: string }> }
+  expect(draftResult.items).toHaveLength(1)
+  expect(draftResult.items[0].status).toBe('草稿')
+  expect(byMaterial[draftResult.items[0].id]).toMatchObject({ status: '已用', effect: '未评' })
+  const elapsedMs = Date.now() - startedAt
+  console.log(`375px post-class browser walkthrough automation: ${elapsedMs}ms from page open through saved API read-back`)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })

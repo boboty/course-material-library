@@ -1,6 +1,6 @@
 # Run Log
 
-Task 13–15、17–26 的运行记录。Duration 从 Paseo 的 Developer 会话创建时间起，至对应 Independent Verifier 最终验收 commit 的提交时间止。时间为北京时间（UTC+08:00）；不使用与任务顺序冲突的 Paseo `updatedAt` 作为结束时间。
+Task 13–15、17–27 的运行记录。Duration 从 Paseo 的 Developer 会话创建时间起，至对应 Independent Verifier 最终验收 commit 的提交时间止。时间为北京时间（UTC+08:00）；不使用与任务顺序冲突的 Paseo `updatedAt` 作为结束时间。
 
 | Task | Developer | Verifier | Duration | Result | RC Count | Notes |
 | --- | --- | --- | --- | --- | ---: | --- |
@@ -17,6 +17,7 @@ Task 13–15、17–26 的运行记录。Duration 从 Paseo 的 Developer 会话
 | Task 24 | Luna High（Codex `gpt-6-luna`） | Sonnet High（Claude `claude-sonnet-5`） | 16 分 24.974 秒 | PASS | 0 | Developer 创建于 2026-09-26 01:33:35.026；最终验收 commit `93301e7` 于 01:50:00。同客户提醒的 UI 由 API 测试覆盖，E2E 覆盖集团提醒。|
 | Task 25 | Luna High（Codex `gpt-6-luna`） | Sonnet High（Claude `claude-sonnet-5`） | 33 分 20.516 秒 | PASS | 0 | Developer 创建于 2026-09-26 01:52:15.484；最终验收 commit `3bcd227` 于 02:25:36。类型为空草稿的字段约束由应用层保证。|
 | Task 26 | Luna High（Codex `gpt-6-luna`） | Sonnet High（Claude `claude-sonnet-5`） | 18 分 53.641 秒 | PASS | 0 | Developer 创建于 2026-09-26 02:26:45.359；最终验收 commit `47d4efb` 于 02:45:39。过期使用服务进程本地日期；同日记录以更新时间和 ID 定序。|
+| Task 27 | Luna High（Codex `gpt-6-luna`） | Sonnet High（Claude `claude-sonnet-5`） | 28 分 48.666 秒 | PASS | 0 | Developer 创建于 2026-09-26 02:46:53.334；最终验收 commit `1495cdc` 于 03:15:42。复用 E2E 库的既有用例偶发失败，在 Task 27 之前的基线上亦复现。|
 
 Task 13–15 连续运行跨度为 39 分 57 秒。Task 17–18 连续运行跨度为 44 分 41 秒，其中两项 Task Duration 合计 43 分 38 秒，其余为任务间调度时间。Task 17 首轮独立验收 RC，修复后由新的 Verifier 会话复验 PASS。 
 Task 16 因当次 Orchestrator 未按 Profile 显式启动 Agent，实际模型配置无法可靠确认，因此不纳入本运行统计。

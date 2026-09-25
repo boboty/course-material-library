@@ -218,10 +218,20 @@ for (const width of [1280, 375]) {
     await expect(page.getByLabel('案例类别')).toBeVisible()
     await expect(page.getByLabel('退役原因')).toBeVisible()
     await page.getByLabel('复核日期').fill('')
+    await page.getByLabel('复核日期').press('Tab')
+    await expect(page.getByLabel('复核日期')).toHaveValue('')
     await page.getByLabel('案例类别').selectOption('')
     await page.getByLabel('退役原因').fill('')
     await expect(page.getByLabel('复核日期')).toHaveValue('')
+    const clearedCaseResponse = page.waitForResponse(response =>
+      response.url().endsWith(`/api/v1/materials/${caseMaterial.id}`)
+      && response.request().method() === 'PUT'
+      && response.status() === 200)
     await page.getByRole('button', { name: '保存修改' }).click()
+    const caseResponse = await clearedCaseResponse
+    expect(caseResponse.request().postDataJSON()).toMatchObject({
+      review_date: null, case_category: null, retirement_reason: null,
+    })
     await expect(page.getByRole('heading', { name: caseMaterial.title })).toBeVisible()
     const clearedCase = await (await page.request.get(`/api/v1/materials/${caseMaterial.id}`)).json() as {
       review_date: string | null; case_category: string | null; retirement_reason: string | null
@@ -242,7 +252,14 @@ for (const width of [1280, 375]) {
     await expect(page.getByLabel('Demo 最后验证可用日期')).toBeVisible()
     await expect(page.getByLabel('案例类别')).toHaveCount(0)
     await page.getByLabel('Demo 最后验证可用日期').fill('')
+    await page.getByLabel('Demo 最后验证可用日期').press('Tab')
+    const clearedDemoResponse = page.waitForResponse(response =>
+      response.url().endsWith(`/api/v1/materials/${demoMaterial.id}`)
+      && response.request().method() === 'PUT'
+      && response.status() === 200)
     await page.getByRole('button', { name: '保存修改' }).click()
+    const demoResponse = await clearedDemoResponse
+    expect(demoResponse.request().postDataJSON().demo_verified_on).toBeNull()
     await expect(page.getByRole('heading', { name: demoMaterial.title })).toBeVisible()
     const clearedDemoDate = await (await page.request.get(`/api/v1/materials/${demoMaterial.id}`)).json() as {
       demo_verified_on: string | null
@@ -253,7 +270,13 @@ for (const width of [1280, 375]) {
     await page.getByLabel('类型').selectOption('故事')
     await expect(page.getByLabel('类型')).toHaveValue('故事')
     await expect(page.getByLabel('Demo 最后验证可用日期')).toHaveCount(0)
+    const switchedResponse = page.waitForResponse(response =>
+      response.url().endsWith(`/api/v1/materials/${demoMaterial.id}`)
+      && response.request().method() === 'PUT'
+      && response.status() === 200)
     await page.getByRole('button', { name: '保存修改' }).click()
+    const switchResponse = await switchedResponse
+    expect(switchResponse.request().postDataJSON()).toMatchObject({ type: '故事', demo_verified_on: null })
     await expect(page.getByRole('heading', { name: demoMaterial.title })).toBeVisible()
     const switched = await (await page.request.get(`/api/v1/materials/${demoMaterial.id}`)).json() as {
       type: string; demo_verified_on: string | null
@@ -274,18 +297,27 @@ for (const width of [1280, 375]) {
       expect(response.ok()).toBe(true)
       return response.json() as Promise<{ id: string; title: string }>
     }
-    async function saveSource(material: { id: string; title: string }, sourceId: string) {
+    async function saveSource(material: { id: string; title: string }, sourceId: string,
+      expectedSourceRoot: string) {
       await page.goto(`/materials/${material.id}/edit`)
       await page.getByLabel('源素材').selectOption(sourceId)
+      await expect(page.getByLabel('源素材')).toHaveValue(sourceId)
+      const saved = page.waitForResponse(response =>
+        response.url().endsWith(`/api/v1/materials/${material.id}`)
+        && response.request().method() === 'PUT'
+        && response.status() === 200)
       await page.getByRole('button', { name: '保存修改' }).click()
+      const response = await saved
+      expect(response.request().postDataJSON().source_material_id).toBe(sourceId)
+      expect((await response.json()).source_material_id).toBe(expectedSourceRoot)
       await expect(page.getByRole('heading', { name: material.title })).toBeVisible()
     }
 
     const root = await createMaterial('虚构家族根')
     const child = await createMaterial('虚构家族子素材')
     const variant = await createMaterial('虚构家族变体')
-    await saveSource(child, root.id)
-    await saveSource(variant, child.id)
+    await saveSource(child, root.id, root.id)
+    await saveSource(variant, child.id, root.id)
 
     const variantData = await (await page.request.get(`/api/v1/materials/${variant.id}`)).json() as {
       source_material_id: string; source_material: { id: string }; family_members: Array<{ id: string }>
@@ -301,7 +333,15 @@ for (const width of [1280, 375]) {
 
     await page.goto(`/materials/${variant.id}/edit`)
     await page.getByLabel('源素材').selectOption('')
+    await expect(page.getByLabel('源素材')).toHaveValue('')
+    const clearedSource = page.waitForResponse(response =>
+      response.url().endsWith(`/api/v1/materials/${variant.id}`)
+      && response.request().method() === 'PUT'
+      && response.status() === 200)
     await page.getByRole('button', { name: '保存修改' }).click()
+    const clearedResponse = await clearedSource
+    expect(clearedResponse.request().postDataJSON().source_material_id).toBeNull()
+    expect((await clearedResponse.json()).source_material_id).toBeNull()
     await expect(page.getByText('无（当前素材为家族根）')).toBeVisible()
     const cleared = await (await page.request.get(`/api/v1/materials/${variant.id}`)).json() as {
       source_material_id: string | null; family_members: Array<{ id: string }>
@@ -341,7 +381,14 @@ for (const width of [1280, 375]) {
     await page.goto(`/materials/${material.id}/edit`)
     await expect(page.getByLabel('删除标签 复盘')).toBeVisible()
     await page.getByLabel('删除标签 复盘').click()
+    const updatedResponse = page.waitForResponse(response =>
+      response.url().endsWith(`/api/v1/materials/${material.id}`)
+      && response.request().method() === 'PUT'
+      && response.status() === 200)
     await page.getByRole('button', { name: '保存修改' }).click()
+    const tagResponse = await updatedResponse
+    expect((await tagResponse.json()).tags).toEqual(['故事线索'])
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
     await expect(page.getByText('故事线索', { exact: true })).toBeVisible()
     expect((await (await page.request.get(`/api/v1/materials/${material.id}`)).json()).tags).toEqual(['故事线索'])
   })
@@ -375,7 +422,12 @@ for (const width of [1280, 375]) {
     await page.getByLabel('类型').selectOption('案例')
     await page.getByLabel('正文').fill('重复提示后继续保存的虚构正文。')
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    const savedResponse = page.waitForResponse(response =>
+      response.url().endsWith('/api/v1/materials')
+      && response.request().method() === 'POST'
+      && response.status() === 201)
     await page.getByRole('button', { name: '保存草稿' }).click()
+    await savedResponse
     await expect(page.getByText('重复提示后继续保存的虚构正文。')).toBeVisible()
 
     const saved = await page.request.get(`/api/v1/materials?${new URLSearchParams({ title })}`)
@@ -750,8 +802,12 @@ for (const width of [1280, 375]) {
     await expect(courseCard).toContainText(secondName)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await page.goto(`/materials/${material.id}/edit`)
-    await page.getByRole('checkbox', { name: firstName }).uncheck()
-    await page.getByRole('checkbox', { name: secondName }).uncheck()
+    const firstCourse = page.getByRole('checkbox', { name: firstName })
+    const secondCourse = page.getByRole('checkbox', { name: secondName })
+    await expect(firstCourse).toBeChecked()
+    await expect(secondCourse).toBeChecked()
+    await firstCourse.uncheck()
+    await secondCourse.uncheck()
     await page.getByRole('button', { name: '保存修改' }).click()
     await expect(page.getByText('暂无关联课程')).toBeVisible()
   })
