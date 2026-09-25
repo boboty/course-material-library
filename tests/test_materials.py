@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 from uuid import UUID, uuid4
 
 import pytest
@@ -149,6 +150,69 @@ def test_material_tags_are_trimmed_deduplicated_and_replaceable(client: TestClie
     cleared = client.put(url, json={**base, "tags": []})
     assert cleared.status_code == 200
     assert cleared.json()["tags"] == []
+
+
+def test_material_review_demo_case_retirement_fields_and_switching(client: TestClient) -> None:
+    created = client.post("/api/v1/materials", json={
+        "title": f"虚构复核字段 {uuid4().hex}", "type": "案例", "body": "虚构案例正文",
+    })
+    assert created.status_code == 201
+    material_id = created.json()["id"]
+    url = f"/api/v1/materials/{material_id}"
+    base = {"title": created.json()["title"], "type": "案例", "body": "虚构案例正文",
+            "status": "退役", "review_date": "2026-09-01",
+            "case_category": "A 真实案例", "demo_verified_on": "2026-08-20",
+            "retirement_reason": "  虚构原因  "}
+
+    saved = client.put(url, json=base)
+    assert saved.status_code == 200
+    assert saved.json()["review_date"] == "2026-09-01"
+    assert saved.json()["demo_verified_on"] is None  # 非 Demo 类型会规范化清空
+    assert saved.json()["case_category"] == "A 真实案例"
+    assert saved.json()["retirement_reason"] == "虚构原因"
+    assert client.get(url).json()["retirement_reason"] == "虚构原因"
+
+    switched = client.put(url, json={**base, "type": "故事", "status": "可用"})
+    assert switched.status_code == 200
+    assert switched.json()["review_date"] == "2026-09-01"
+    assert switched.json()["case_category"] is None
+    assert switched.json()["demo_verified_on"] is None
+    assert switched.json()["retirement_reason"] is None
+
+    demo = client.put(url, json={**base, "type": "Demo", "status": "可用",
+                                 "case_category": None, "demo_verified_on": "2026-09-25",
+                                 "retirement_reason": None})
+    assert demo.status_code == 200
+    assert demo.json()["case_category"] is None
+    assert demo.json()["demo_verified_on"] == "2026-09-25"
+
+    demo_date_cleared = client.put(url, json={**base, "type": "Demo", "status": "可用",
+                                              "case_category": None, "demo_verified_on": None,
+                                              "retirement_reason": None})
+    assert demo_date_cleared.status_code == 200
+    assert demo_date_cleared.json()["demo_verified_on"] is None
+
+    demo_restored = client.put(url, json={**base, "type": "Demo", "status": "可用",
+                                          "case_category": None, "demo_verified_on": "2026-09-25",
+                                          "retirement_reason": None})
+    assert demo_restored.status_code == 200
+
+    demo_to_story = client.put(url, json={**base, "type": "故事", "status": "可用",
+                                          "case_category": None, "demo_verified_on": "2026-09-25",
+                                          "retirement_reason": None})
+    assert demo_to_story.status_code == 200
+    assert demo_to_story.json()["demo_verified_on"] is None
+
+    cleared = client.put(url, json={**base, "type": "Demo", "status": "退役",
+                                    "case_category": None, "demo_verified_on": None,
+                                    "retirement_reason": None, "review_date": None})
+    assert cleared.status_code == 200
+    assert all(cleared.json()[field] is None for field in (
+        "review_date", "demo_verified_on", "case_category", "retirement_reason"))
+
+    invalid_category = client.put(url, json={**base, "case_category": "C 虚构类别"})
+    assert invalid_category.status_code == 422
+    assert client.get(url).json()["case_category"] is None
 
 
 def test_material_source_is_normalized_cleared_and_family_members_are_readable(
@@ -739,6 +803,35 @@ def test_not_found_and_invalid_page(client: TestClient) -> None:
 def test_database_allows_title_only_draft_but_not_incomplete_non_draft() -> None:
     import asyncio
     asyncio.run(_check_database_constraints())
+
+
+def test_database_rejects_material_fields_for_other_types_and_statuses() -> None:
+    asyncio.run(_check_material_metadata_constraints())
+
+
+async def _check_material_metadata_constraints() -> None:
+    engine = create_async_engine(TEST_DATABASE_URL)
+    invalid_rows = (
+        ("故事", "可用", "case_category", "A 真实案例"),
+        ("故事", "可用", "demo_verified_on", date(2026, 9, 20)),
+        ("故事", "可用", "retirement_reason", "虚构退役原因"),
+        ("案例", "可用", "case_category", "C 虚构类别"),
+    )
+    try:
+        for material_type, status, column, value in invalid_rows:
+            async with engine.connect() as conn:
+                trans = await conn.begin()
+                try:
+                    with pytest.raises(IntegrityError):
+                        await conn.execute(text(
+                            f"insert into materials (id, title, type, body, status, {column}) "
+                            "values (:id, '虚构约束测试', :type, '虚构正文', :status, :value)"
+                        ), {"id": uuid4(), "type": material_type, "status": status,
+                            "value": value})
+                finally:
+                    await trans.rollback()
+    finally:
+        await engine.dispose()
 
 
 async def _check_database_constraints() -> None:

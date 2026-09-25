@@ -42,6 +42,82 @@ test('same title warns but still allows saving another material', async ({ page 
 })
 
 for (const width of [1280, 375]) {
+  test(`review, demo verification, case category and retirement fields edit and display at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    async function createMaterial(title: string, type: string, status: string, extra: object) {
+      const name = `${title} ${crypto.randomUUID()}`
+      const created = await page.request.post('/api/v1/materials', {
+        data: { title: name, type, body: '虚构字段测试正文' },
+      })
+      expect(created.ok()).toBe(true)
+      const material = await created.json() as { id: string; title: string }
+      const updated = await page.request.put(`/api/v1/materials/${material.id}`, {
+        data: { title: name, type, body: '虚构字段测试正文', status, ...extra },
+      })
+      expect(updated.ok()).toBe(true)
+      return material
+    }
+
+    const caseMaterial = await createMaterial('虚构案例字段', '案例', '退役', {
+      review_date: '2026-09-01', case_category: 'B 情境案例', retirement_reason: '虚构退役原因',
+    })
+    await page.goto(`/materials/${caseMaterial.id}`)
+    await expect(page.getByText('2026-09-01')).toBeVisible()
+    await expect(page.getByText('B 情境案例')).toBeVisible()
+    await expect(page.getByText('虚构退役原因')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Demo 最后验证可用日期' })).toHaveCount(0)
+
+    await page.goto(`/materials/${caseMaterial.id}/edit`)
+    await expect(page.getByLabel('案例类别')).toBeVisible()
+    await expect(page.getByLabel('退役原因')).toBeVisible()
+    await page.getByLabel('复核日期').fill('')
+    await page.getByLabel('案例类别').selectOption('')
+    await page.getByLabel('退役原因').fill('')
+    await expect(page.getByLabel('复核日期')).toHaveValue('')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: caseMaterial.title })).toBeVisible()
+    const clearedCase = await (await page.request.get(`/api/v1/materials/${caseMaterial.id}`)).json() as {
+      review_date: string | null; case_category: string | null; retirement_reason: string | null
+    }
+    expect(clearedCase).toMatchObject({ review_date: null, case_category: null, retirement_reason: null })
+    await expect(page.getByRole('heading', { name: '复核日期' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: '案例类别' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: '退役原因' })).toHaveCount(0)
+
+    const demoMaterial = await createMaterial('虚构 Demo 字段', 'Demo', '可用', {
+      review_date: '2026-09-10', demo_verified_on: '2026-09-20',
+    })
+    await page.goto(`/materials/${demoMaterial.id}`)
+    await expect(page.getByText('2026-09-10')).toBeVisible()
+    await expect(page.getByText('2026-09-20')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '案例类别' })).toHaveCount(0)
+    await page.goto(`/materials/${demoMaterial.id}/edit`)
+    await expect(page.getByLabel('Demo 最后验证可用日期')).toBeVisible()
+    await expect(page.getByLabel('案例类别')).toHaveCount(0)
+    await page.getByLabel('Demo 最后验证可用日期').fill('')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: demoMaterial.title })).toBeVisible()
+    const clearedDemoDate = await (await page.request.get(`/api/v1/materials/${demoMaterial.id}`)).json() as {
+      demo_verified_on: string | null
+    }
+    expect(clearedDemoDate.demo_verified_on).toBeNull()
+
+    await page.goto(`/materials/${demoMaterial.id}/edit`)
+    await page.getByLabel('类型').selectOption('故事')
+    await expect(page.getByLabel('类型')).toHaveValue('故事')
+    await expect(page.getByLabel('Demo 最后验证可用日期')).toHaveCount(0)
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: demoMaterial.title })).toBeVisible()
+    const switched = await (await page.request.get(`/api/v1/materials/${demoMaterial.id}`)).json() as {
+      type: string; demo_verified_on: string | null
+    }
+    expect(switched.type).toBe('故事')
+    expect(switched.demo_verified_on).toBeNull()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`source materials form a flat family and can be cleared at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     async function createMaterial(title: string) {

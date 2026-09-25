@@ -10,6 +10,10 @@ export type Material = {
   supporting_judgment: string | null
   speaking_notes: string | null
   source_note: string | null
+  review_date: string | null
+  demo_verified_on: string | null
+  case_category: 'A 真实案例' | 'B 情境案例' | null
+  retirement_reason: string | null
   courses: Course[]
   audience_types: Vocabulary[]
   industries: Vocabulary[]
@@ -120,6 +124,10 @@ export type MaterialUpdate = {
   supporting_judgment: string | null
   speaking_notes: string | null
   source_note: string | null
+  review_date: string | null
+  demo_verified_on: string | null
+  case_category: 'A 真实案例' | 'B 情境案例' | null
+  retirement_reason: string | null
   course_ids: string[]
   audience_type_ids: string[]
   industry_ids: string[]

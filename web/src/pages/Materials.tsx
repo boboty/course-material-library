@@ -214,6 +214,10 @@ export function MaterialDetail() {
     {material.supporting_judgment && <Card accent className="detail-body"><h2>支撑什么判断</h2><p>{material.supporting_judgment}</p></Card>}
     {material.speaking_notes && <Card accent className="detail-body"><h2>讲法要点</h2><p>{material.speaking_notes}</p></Card>}
     {material.source_note && <Card accent className="detail-body"><h2>来源备注（仅内部可见）</h2><p>{material.source_note}</p></Card>}
+    {material.review_date && <Card accent className="detail-body"><h2>复核日期</h2><p>{material.review_date}</p></Card>}
+    {material.type === '案例' && material.case_category && <Card accent className="detail-body"><h2>案例类别</h2><p>{material.case_category}</p></Card>}
+    {material.type === 'Demo' && material.demo_verified_on && <Card accent className="detail-body"><h2>Demo 最后验证可用日期</h2><p>{material.demo_verified_on}</p></Card>}
+    {material.status === '退役' && material.retirement_reason && <Card accent className="detail-body"><h2>退役原因</h2><p>{material.retirement_reason}</p></Card>}
     <Card accent className="detail-body"><h2>素材家族</h2>
       <p>源素材：{material.source_material ? <Link to={`/materials/${material.source_material.id}`}>{material.source_material.title}</Link> : '无（当前素材为家族根）'}</p>
       <p>同家族成员：{material.family_members?.length ? material.family_members.map(member => <span key={member.id}><Link to={`/materials/${member.id}`}>{member.title}</Link> </span>) : '暂无其他成员'}</p>
@@ -235,6 +239,10 @@ export function MaterialEdit() {
   const [supportingJudgment, setSupportingJudgment] = useState('')
   const [speakingNotes, setSpeakingNotes] = useState('')
   const [sourceNote, setSourceNote] = useState('')
+  const [reviewDate, setReviewDate] = useState('')
+  const [demoVerifiedOn, setDemoVerifiedOn] = useState('')
+  const [caseCategory, setCaseCategory] = useState<'A 真实案例' | 'B 情境案例' | ''>('')
+  const [retirementReason, setRetirementReason] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
   const [courseIds, setCourseIds] = useState<string[]>([])
   const [audienceTypes, setAudienceTypes] = useState<Vocabulary[]>([])
@@ -255,6 +263,10 @@ export function MaterialEdit() {
       setSupportingJudgment(material.supporting_judgment || '')
       setSpeakingNotes(material.speaking_notes || '')
       setSourceNote(material.source_note || '')
+      setReviewDate(material.review_date || '')
+      setDemoVerifiedOn(material.demo_verified_on || '')
+      setCaseCategory(material.case_category || '')
+      setRetirementReason(material.retirement_reason || '')
       setCourses(allCourses); setCourseIds(material.courses.map(course => course.id))
       setAudienceTypes(allAudienceTypes); setAudienceTypeIds(material.audience_types.map(item => item.id))
       setIndustries(allIndustries); setIndustryIds(material.industries.map(item => item.id))
@@ -274,6 +286,10 @@ export function MaterialEdit() {
       supporting_judgment: supportingJudgment.trim() || null,
       speaking_notes: speakingNotes.trim() || null,
       source_note: sourceNote.trim() || null,
+      review_date: reviewDate || null,
+      demo_verified_on: demoVerifiedOn || null,
+      case_category: caseCategory || null,
+      retirement_reason: retirementReason.trim() || null,
       course_ids: courseIds,
       audience_type_ids: audienceTypeIds,
       industry_ids: industryIds,
@@ -292,18 +308,22 @@ export function MaterialEdit() {
   return <main className="material-page by-container"><Link to={`/materials/${id}`}>← 返回素材详情</Link><div className="by-eyebrow by-eyebrow--tick">编辑素材</div><h1>编辑素材</h1><p className="by-lead">草稿可暂缺类型和正文；其他状态必须填写完整。</p>
     {loadError && <Callout tone="risk">{loadError}</Callout>}{!loaded && !loadError && <p className="result-count">素材加载中…</p>}
     {loaded && <Card accent className="form-card"><form onSubmit={submit} className="material-form" noValidate><label>标题<input required maxLength={255} value={title} onChange={event => setTitle(event.target.value)} /></label>
-      <label>类型<select value={type} onChange={event => setType(event.target.value)}><option value="">未填写类型</option>{materialTypes.map(item => <option key={item}>{item}</option>)}</select></label>
+      <label>类型<select value={type} onChange={event => { const nextType = event.target.value; setType(nextType); if (nextType !== '案例') setCaseCategory(''); if (nextType !== 'Demo') setDemoVerifiedOn('') }}><option value="">未填写类型</option>{materialTypes.map(item => <option key={item}>{item}</option>)}</select></label>
       <label>正文<textarea rows={8} value={body} onChange={event => setBody(event.target.value)} /></label>
       <label>支撑什么判断<textarea rows={4} value={supportingJudgment} onChange={event => setSupportingJudgment(event.target.value)} /></label>
       <label>讲法要点<textarea rows={4} value={speakingNotes} onChange={event => setSpeakingNotes(event.target.value)} /></label>
       <label>来源备注（仅内部可见）<textarea rows={4} value={sourceNote} onChange={event => setSourceNote(event.target.value)} /></label>
+      <label>复核日期<input type="date" value={reviewDate} onChange={event => setReviewDate(event.target.value)} /></label>
+      {type === '案例' && <label>案例类别<select value={caseCategory} onChange={event => setCaseCategory(event.target.value as typeof caseCategory)}><option value="">未填写</option><option value="A 真实案例">A 真实案例</option><option value="B 情境案例">B 情境案例</option></select></label>}
+      {type === 'Demo' && <label>Demo 最后验证可用日期<input type="date" value={demoVerifiedOn} onChange={event => setDemoVerifiedOn(event.target.value)} /></label>}
       <label htmlFor="material-source">源素材</label><select id="material-source" value={sourceMaterialId} onChange={event => setSourceMaterialId(event.target.value)}><option value="">无，作为独立素材 / 家族根</option>{materials.map(candidate => <option key={candidate.id} value={candidate.id}>{candidate.title}{candidate.source_title ? `（归属：${candidate.source_title}）` : ''}</option>)}</select>
       <p>选择已有家族成员时会自动归到该家族根素材；不复制素材内容。</p>
       <fieldset><legend>关联课程</legend><p>可选择多门课程；不选择表示无关联。</p>{courses.map(course => <label key={course.id}><input type="checkbox" checked={courseIds.includes(course.id)} onChange={event => setCourseIds(current => event.target.checked ? [...current, course.id] : current.filter(value => value !== course.id))} />{course.name}{course.status === '停用' ? '（停用）' : ''}</label>)}</fieldset>
       <fieldset><legend>适用人群</legend><p>可多选；不选择表示不限定适用人群。</p>{audienceTypes.map(item => <label key={item.id}><input type="checkbox" checked={audienceTypeIds.includes(item.id)} onChange={event => setAudienceTypeIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
       <fieldset><legend>适用行业</legend><p>可多选；不选择表示不限定适用行业。</p>{industries.map(item => <label key={item.id}><input type="checkbox" checked={industryIds.includes(item.id)} onChange={event => setIndustryIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
       <fieldset className="choice-field"><legend>标签</legend><p>自由输入，可添加多个；首尾空白会自动去除。</p><div className="tag-editor"><label htmlFor="material-tag-input">添加标签<input id="material-tag-input" value={tagDraft} onChange={event => setTagDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addTag() } }} /></label><Button type="button" variant="secondary" onClick={addTag}>添加标签</Button></div><ul className="tag-list">{tags.map(tag => <li key={tag}>{tag}<Button type="button" variant="secondary" aria-label={`删除标签 ${tag}`} onClick={() => setTags(current => current.filter(value => value !== tag))}>删除</Button></li>)}</ul></fieldset>
-      <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
+      <label>状态<select value={status} onChange={event => { const nextStatus = event.target.value; setStatus(nextStatus); if (nextStatus !== '退役') setRetirementReason('') }}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
+      {status === '退役' && <label>退役原因<textarea rows={3} value={retirementReason} onChange={event => setRetirementReason(event.target.value)} /></label>}
       {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
   </main>
 }

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -42,6 +42,10 @@ class MaterialUpdate(BaseModel):
     supporting_judgment: str | None = None
     speaking_notes: str | None = None
     source_note: str | None = None
+    review_date: date | None = None
+    demo_verified_on: date | None = None
+    case_category: Literal["A 真实案例", "B 情境案例"] | None = None
+    retirement_reason: str | None = None
     course_ids: list[UUID] | None = None
     audience_type_ids: list[UUID] | None = None
     industry_ids: list[UUID] | None = None
@@ -71,7 +75,7 @@ class MaterialUpdate(BaseModel):
             raise ValueError("invalid material type")
         return value
 
-    @field_validator("supporting_judgment", "speaking_notes", "source_note")
+    @field_validator("supporting_judgment", "speaking_notes", "source_note", "retirement_reason")
     @classmethod
     def blank_optional_text_to_none(cls, value: str | None) -> str | None:
         if value is None:
@@ -125,6 +129,10 @@ class MaterialRead(BaseModel):
     supporting_judgment: str | None
     speaking_notes: str | None
     source_note: str | None
+    review_date: date | None
+    demo_verified_on: date | None
+    case_category: str | None
+    retirement_reason: str | None
     courses: list[CourseRead]
     audience_types: list[VocabularyRead]
     industries: list[VocabularyRead]

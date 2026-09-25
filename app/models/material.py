@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     CheckConstraint,
     Column,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -59,6 +60,14 @@ class Material(Base):
                         name="materials_non_draft_complete"),
         CheckConstraint("source_material_id IS NULL OR source_material_id <> id",
                         name="materials_source_not_self"),
+        CheckConstraint("case_category IS NULL OR case_category IN ('A 真实案例','B 情境案例')",
+                        name="materials_case_category_valid"),
+        CheckConstraint("type = '案例' OR case_category IS NULL",
+                        name="materials_case_category_type"),
+        CheckConstraint("type = 'Demo' OR demo_verified_on IS NULL",
+                        name="materials_demo_verified_type"),
+        CheckConstraint("status = '退役' OR retirement_reason IS NULL",
+                        name="materials_retirement_reason_status"),
         Index("ix_materials_created_id", "created_at", "id"),
     )
 
@@ -69,6 +78,10 @@ class Material(Base):
     supporting_judgment: Mapped[str | None] = mapped_column(Text, nullable=True)
     speaking_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     source_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    demo_verified_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    case_category: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    retirement_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str]] = mapped_column(
         ARRAY(Text), nullable=False, server_default=text("'{}'::text[]"))
     source_material_id: Mapped[UUID | None] = mapped_column(

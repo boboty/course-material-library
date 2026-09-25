@@ -274,7 +274,22 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         material.speaking_notes = payload.speaking_notes
     if "source_note" in payload.model_fields_set:
         material.source_note = payload.source_note
+    if "review_date" in payload.model_fields_set:
+        material.review_date = payload.review_date
+    if "demo_verified_on" in payload.model_fields_set:
+        material.demo_verified_on = payload.demo_verified_on
+    if "case_category" in payload.model_fields_set:
+        material.case_category = payload.case_category
+    if "retirement_reason" in payload.model_fields_set:
+        material.retirement_reason = payload.retirement_reason
     material.status = payload.status
+    # Type/status transitions deterministically clear fields that no longer apply.
+    if payload.type != "案例":
+        material.case_category = None
+    if payload.type != "Demo":
+        material.demo_verified_on = None
+    if payload.status != "退役":
+        material.retirement_reason = None
     if courses is not None:
         material.courses = courses
     if audience_types is not None:
