@@ -108,6 +108,84 @@ def test_invalid_status_filter_is_rejected(client: TestClient) -> None:
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_type_filter_and_title_or_body_search_combine_with_status_and_pagination(
+    client: TestClient,
+) -> None:
+    marker = uuid4().hex
+    ids: dict[str, str] = {}
+    for material_type in ("故事", "案例", "Demo", "金句", "段子", "行业素材"):
+        response = client.post("/api/v1/materials", json={
+            "title": f"虚构类型 {marker} {material_type}", "type": material_type,
+            "body": f"正文关键词 {marker} {material_type}",
+        })
+        assert response.status_code == 201
+        ids[material_type] = response.json()["id"]
+
+    # 正文为空时可正常列表，并且正文关键词只命中标题。
+    empty_body = client.put(f"/api/v1/materials/{ids['故事']}", json={
+        "title": f"标题关键词 {marker}", "type": "故事", "body": None, "status": "草稿",
+    })
+    assert empty_body.status_code == 200
+    assert client.get("/api/v1/materials", params={"type": "故事"}).status_code == 200
+
+    title_hits = client.get("/api/v1/materials", params={"q": "标题关键词", "type": "故事"})
+    assert title_hits.status_code == 200
+    assert title_hits.json()["total"] == 1
+    assert title_hits.json()["items"][0]["body"] is None
+
+    body_hits = client.get("/api/v1/materials", params={
+        "q": f"正文关键词 {marker}", "type": "案例",
+    })
+    assert body_hits.status_code == 200
+    assert body_hits.json()["total"] == 1
+    assert body_hits.json()["items"][0]["type"] == "案例"
+
+    # 标题或正文命中同一条素材时 total 仍按记录计数，不重复。
+    either = client.get("/api/v1/materials", params={"q": marker})
+    assert either.status_code == 200
+    assert either.json()["total"] == 6
+
+    for material_type, material_id in ids.items():
+        result = client.get("/api/v1/materials", params={"type": material_type, "q": marker})
+        assert result.status_code == 200
+        assert result.json()["total"] == 1
+        assert result.json()["items"][0]["id"] == material_id
+
+    # 搜索、类型、状态三项同时影响 total 与分页。
+    filtered_ids = []
+    for number in range(3):
+        response = client.post("/api/v1/materials", json={
+            "title": f"组合筛选 {marker} {number}", "type": "Demo",
+            "body": f"组合正文 {marker} {number}",
+        })
+        assert response.status_code == 201
+        material_id = response.json()["id"]
+        filtered_ids.append(material_id)
+        updated = client.put(f"/api/v1/materials/{material_id}", json={
+            "title": f"组合筛选 {marker} {number}", "type": "Demo",
+            "body": f"组合正文 {marker} {number}", "status": "可用",
+        })
+        assert updated.status_code == 200
+
+    params = {"q": f"组合正文 {marker}", "type": "Demo", "status": "可用", "page_size": 1}
+    first = client.get("/api/v1/materials", params=params)
+    second = client.get("/api/v1/materials", params={**params, "page": 2})
+    outside = client.get("/api/v1/materials", params={**params, "type": "故事"})
+    assert first.json()["total"] == second.json()["total"] == 3
+    assert len(first.json()["items"]) == len(second.json()["items"]) == 1
+    assert first.json()["items"][0]["id"] != second.json()["items"][0]["id"]
+    assert outside.json()["total"] == 0
+    assert all(material_id in filtered_ids for material_id in
+               [first.json()["items"][0]["id"], second.json()["items"][0]["id"]])
+
+
+def test_invalid_type_filter_is_rejected(client: TestClient) -> None:
+    for material_type in ("未知", "", "故事,案例"):
+        response = client.get("/api/v1/materials", params={"type": material_type})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_exact_title_finds_match_beyond_fuzzy_first_page(client: TestClient) -> None:
     title = f"虚构同标题 {uuid4().hex}"
     payload = {"title": title, "type": "故事", "body": "虚构正文"}

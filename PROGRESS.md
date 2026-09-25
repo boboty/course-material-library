@@ -17,6 +17,7 @@
 - 工程规范迁移 v1.1.0 → v1.2.0：PASS（非产品 Task）
 - Task 11: PASS
 - Task 12: PASS
+- Task 13: PASS
 
 ## 已验收基线
 
@@ -34,6 +35,8 @@
 - Task 12 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 12 material editing`
 - Task 12 独立验收时：临时本机 PostgreSQL 16 测试实例；`make check` 通过（ruff、pyright 0 errors、后端 154 passed、E2E 数据库门禁、前端 14 passed、build），`make e2e` 26 passed（含 1280px / 375px 素材编辑），`make smoke` 通过，`git diff --check` 通过；核对 PUT 契约、错误响应、失败后数据不变、草稿与非草稿规则、同标题和 404；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；smoke 脚本不覆盖 PUT（由后端测试及 E2E 覆盖）；V1 无并发编辑控制。
 - Task 11 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 `0003_usages`；`make check` 通过（ruff、pyright 0 errors、后端 138 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 22 passed（含 1280px / 375px 同标题提示与保存），`git diff --check` 通过；审查确认前端查询前 trim 与既有保存时 strip 一致，后端 `title` 为区分大小写的精确相等查询，允许同标题并存；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；重复查询失败时静默不显示提示，保存仍可继续。
+- Task 13 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 13 material type filter and body search`
+- Task 13 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 156 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 28 passed（含 1280px / 375px 类型 / 状态 / 正文关键词组合与超一页翻页保留条件），`git diff --check` 通过；审查确认 `type` 为 Literal 六值（空值、多值、未知值 422），`q` 为标题或正文 `ilike`，条件共同作用于 total 与分页，前端筛选变更回第一页且翻页保留全部条件；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；`q` 中 `%` / `_` 作为 LIKE 通配符的既有行为未处理（沿用原标题搜索）；smoke 脚本不覆盖列表筛选（由后端测试与 E2E 覆盖）。
 - Migration head: 0003_usages（单一 head）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
@@ -72,6 +75,7 @@
 - Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
 - Task 11 冻结：快速录入的同标题提示复用既有 `GET /api/v1/materials?title=` 精确相等查询（区分大小写、不做模糊或额外标准化）；前端以去除首尾空白后的标题查询，与后端保存时既有的 strip 行为一致，不属于新增标准化规则；提示不阻止保存，允许同标题素材并存的规则不变；查询失败时不显示提示且不影响保存。
 - Task 10 施工判断：素材列表的 `status` 为可选单值查询参数，值仅限现有五种素材状态；省略时查询全部，非法值按既有校验错误返回 422；关键词和状态条件共同作用于后端总数与分页。状态筛选不改变现有标题搜索范围。
+- Task 13 施工判断：素材列表 `type` 为可选单值筛选，值限定为现有六种素材类型；关键词以不区分大小写的子串匹配标题或正文，空正文不影响查询；关键词、类型、状态共同约束 total 和分页。任意筛选或关键词变化回到第一页，翻页保留全部条件。非法类型（含空值、多值）返回既有 422 `VALIDATION_ERROR`。不加入标签搜索、其他维度筛选或相关度排序。
 
 ## 当前已实现
 
@@ -90,6 +94,7 @@
 - Task 10：素材列表可按单个状态筛选、切回全部状态，并与现有标题关键词搜索组合；状态及关键词提交后从第一页查询；状态保留在分页 URL 中；素材 Badge 沿用已有映射
 - Task 12：素材详情“编辑素材”入口；编辑页预填标题 / 类型 / 正文 / 状态，`PUT /api/v1/materials/{id}` 保存后返回详情并显示最新内容
 - Task 11：快速录入按后端精确标题查询显示同标题提示，提示下仍可保存新素材；提示在标题改为不同值后消失
+- Task 13：素材列表新增单选类型筛选，关键词扩展为标题或正文匹配；类型、状态与关键词条件保留在 URL 并组合分页
 
 ## 当前尚未具备
 
@@ -101,16 +106,15 @@
 
 ## 当前任务
 
-- Task 12：素材基础编辑 —— PASS（Independent Verifier 独立验收）。
-  - 后端：新增 `PUT /api/v1/materials/{id}`（`MaterialUpdate`，extra=forbid）。标题 strip 后不能为空、最长 255；类型为现有六种或 null；状态为现有五种（Literal）；正文 strip，空白归一为 null（DB 约束禁止空白正文）；非草稿缺类型或正文返回 422 `MATERIAL_INCOMPLETE`「非草稿素材必须填写类型和正文」；其他非法输入沿用 422 `VALIDATION_ERROR`；不存在返回既有 404 `NOT_FOUND`；标题不查重，允许同标题
-  - 前端：详情页 `.detail-actions` 中“编辑素材”主链接 → `/materials/:id/edit`；编辑页预填四字段，草稿允许类型 / 正文留空，前端先行拦截空标题与非草稿不完整并显示 `role=alert` 提示，同时展示后端错误；保存成功跳回详情；不存在素材显示“素材不存在”且不渲染表单。复用设计系统 Card / Callout / Button / Badge 及既有样式，未新增 CSS
-  - Schema / migration：无变更，head 仍为 0003_usages；API 契约仅新增 PUT 端点
-  - 测试新增：后端 16 条（更新四字段与全部状态、草稿缺类型 / 正文、非草稿不完整 4 种、非法标题 / 类型 / 状态 / 多余字段 8 种且数据不变、同标题、404）；E2E 4 条（1280px / 375px 详情→编辑→空标题拦截→非草稿缺正文拦截且后端未变→保存返回详情显示新标题 / 类型 / 正文 / 主力 Badge、无横向溢出、刷新保持；草稿清空类型正文 + 改成同标题；不存在素材编辑页）
-  - Developer 自验（临时本机 PostgreSQL 16 `/tmp/cml-task12-pg`，benyan / benyan_test 迁移至 head，自验后已停止）：`make check` 通过（ruff、pyright 0 errors、后端 154 passed、E2E 数据库门禁、前端 14 passed、build）；`make e2e` 26 passed；`make smoke` 通过（health / not-found）；`git diff --check` 通过；测试数据均为虚构
-  - 验收确认：草稿编辑允许类型 / 正文为空，与既有草稿及数据库约束一致；非草稿不完整返回 422 `MATERIAL_INCOMPLETE`，其余非法输入返回 422 `VALIDATION_ERROR`；失败后数据不变，404 沿用 `NOT_FOUND`
-  - 独立验证：`make check` 通过（后端 154 passed、前端 14 passed、build）；`make e2e` 26 passed；`make smoke` 通过；`git diff --check` 通过
-  - 风险 / 限制：未在 Docker Compose 环境复测；smoke 脚本不覆盖 PUT（由后端测试与 E2E 覆盖）；无并发编辑控制（Task 明确不做，最后写入覆盖）
+- Task 13：素材类型筛选与正文关键词搜索 —— PASS（Independent Verifier 独立验收）。
+  - 后端：`GET /api/v1/materials` 增加单值 `type` 查询参数，限定现有六种类型；`q` 在标题或正文执行不区分大小写子串匹配。类型、状态、关键词同时用于 total 与分页；`body IS NULL` 可正常查询；非法类型沿用 422 `VALIDATION_ERROR`。
+  - 前端：素材列表增加“全部类型”及六种类型单选；关键词输入提示改为“搜索标题或正文”；URL 驱动的类型、状态、关键词条件在筛选变更时回第一页，翻页保留全部条件。复用现有设计系统表单样式，无 CSS / 依赖变更。
+  - Schema / migration：无变更；Migration head 仍为 `0003_usages`。
+  - 测试新增：后端验证六种类型、标题命中、正文命中、空正文、组合筛选 total / 分页、非法类型；E2E 在 1280px / 375px 验证类型和状态组合、条件变更回第一页、超过 20 条组合结果翻页保留 URL 条件与无横向溢出。
+  - Developer 自验：临时本机 PostgreSQL 17（`/private/tmp/cml-task13-pg.*`，数据库 `benyan_test` / `benyan_e2e`）迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 156 passed、E2E DB 门禁、前端 14 passed、build）；`make smoke` 通过（health / not-found）；`make e2e` 28 passed（含 1280px / 375px 新筛选和组合分页）；`git diff --check` 通过。
+  - 数据边界：测试仅使用虚构数据与随机标记；未发现真实业务数据或 Secret；无 schema / migration 变更。
+  - 风险 / 限制：未在 Docker Compose 环境复测；`%` / `_` 通配符沿用既有行为。
 
 ## 下一步
 
-- 由用户确定下一个 Task；push 须人工授权。
+- 由用户 / Orchestrator 确定下一个 Task；push 须人工授权。

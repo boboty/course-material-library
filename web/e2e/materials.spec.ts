@@ -9,7 +9,7 @@ test('quick create, search, open detail and survive refresh', async ({ page }) =
   await page.getByRole('button', { name: '保存草稿' }).click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
   await page.goto('/materials')
-  await page.getByLabel('搜索标题').fill(title)
+  await page.getByLabel('搜索标题或正文').fill(title)
   await page.getByRole('button', { name: '搜索' }).click()
   await expect(page.getByText('共 1 条素材')).toBeVisible()
   await page.getByRole('link', { name: new RegExp(title) }).click()
@@ -36,7 +36,7 @@ test('same title warns but still allows saving another material', async ({ page 
   await expect(page.getByText('第二条虚构正文。')).toBeVisible()
 
   await page.goto('/materials')
-  await page.getByLabel('搜索标题').fill(title)
+  await page.getByLabel('搜索标题或正文').fill(title)
   await page.getByRole('button', { name: '搜索' }).click()
   await expect(page.getByText('共 2 条素材')).toBeVisible()
 })
@@ -78,6 +78,72 @@ for (const width of [1280, 375]) {
 }
 
 for (const width of [1280, 375]) {
+  test(`material type, body search and combined filters work at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const marker = crypto.randomUUID()
+    const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+
+    // 每种素材类型各建一条，关键词统一放在正文中，以验证正文搜索和单选类型筛选。
+    for (const [index, type] of ['故事', '案例', 'Demo', '金句', '段子', '行业素材'].entries()) {
+      const response = await page.request.post('/api/v1/materials', {
+        data: { title: `虚构类型筛选 ${marker} ${index}`, type, body: `正文检索 ${marker}` },
+      })
+      expect(response.ok()).toBe(true)
+      if (type === '案例') {
+        const { id } = await response.json()
+        const updated = await page.request.put(`/api/v1/materials/${id}`, {
+          data: { title: `虚构类型筛选 ${marker} ${index}`, type, body: `正文检索 ${marker}`, status: '可用' },
+        })
+        expect(updated.ok()).toBe(true)
+      }
+    }
+
+    const pageItems = await page.request.get(`/api/v1/materials?${new URLSearchParams({ type: 'Demo', status: '可用', q: marker })}`)
+    expect((await pageItems.json()).total).toBe(0)
+    await page.goto(`/materials?q=${encodeURIComponent(marker)}&page=2`)
+    await expect(page.getByText('共 6 条素材')).toBeVisible()
+    await expect(page.getByText('第 2 页')).toBeVisible()
+    await page.getByLabel('类型').selectOption('案例')
+    await expect(page).toHaveURL(/type=%E6%A1%88%E4%BE%8B.*page=1/)
+    await expect(page.getByText('共 1 条素材')).toBeVisible()
+    await expect(page.getByRole('heading', { name: new RegExp(`虚构类型筛选 ${marker} 1`) })).toBeVisible()
+
+    await page.getByLabel('状态').selectOption('可用')
+    await expect(page).toHaveURL(/type=%E6%A1%88%E4%BE%8B.*status=%E5%8F%AF%E7%94%A8.*page=1/)
+    await expect(page.getByText('共 1 条素材')).toBeVisible()
+    await page.getByLabel('类型').selectOption('')
+    await expect(page.getByLabel('状态')).toHaveValue('可用')
+    await expect(page.getByText('共 1 条素材')).toBeVisible()
+
+    await page.getByLabel('搜索标题或正文').fill(marker)
+    await page.getByRole('button', { name: '搜索' }).click()
+    await expect(page).toHaveURL(/q=.*type=&status=%E5%8F%AF%E7%94%A8&page=1/)
+    await expect(page.getByRole('heading', { name: new RegExp(`虚构类型筛选 ${marker} 1`) })).toBeVisible()
+
+    // 构造超过一页的同条件结果，验证 UI 翻页仍携带关键词、类型和状态。
+    for (let index = 0; index < 21; index += 1) {
+      const title = `虚构分页筛选 ${marker} ${index}`
+      const response = await page.request.post('/api/v1/materials', {
+        data: { title, type: 'Demo', body: `分页正文 ${marker}` },
+      })
+      expect(response.ok()).toBe(true)
+      const { id } = await response.json()
+      const updated = await page.request.put(`/api/v1/materials/${id}`, {
+        data: { title, type: 'Demo', body: `分页正文 ${marker}`, status: '可用' },
+      })
+      expect(updated.ok()).toBe(true)
+    }
+    await page.getByLabel('类型').selectOption('Demo')
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await page.getByRole('button', { name: '下一页' }).click()
+    await expect(page).toHaveURL(/q=.*type=Demo&status=%E5%8F%AF%E7%94%A8&page=2/)
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await expect(page.getByText('第 2 页')).toBeVisible()
+    await expect.poll(noOverflow).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material status filter combines with search and resets page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const marker = crypto.randomUUID()
@@ -97,7 +163,7 @@ for (const width of [1280, 375]) {
     await expect(page.getByText('共 0 条素材')).toBeVisible()
     await page.getByLabel('状态').selectOption('')
     await expect(page.getByRole('heading', { name: title })).toBeVisible()
-    await page.getByLabel('搜索标题').fill(`${marker} missing`)
+    await page.getByLabel('搜索标题或正文').fill(`${marker} missing`)
     await page.getByRole('button', { name: '搜索' }).click()
     await expect(page.getByText('共 0 条素材')).toBeVisible()
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

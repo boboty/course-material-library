@@ -2,7 +2,7 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApplicationError
@@ -15,6 +15,7 @@ DbSession = Annotated[AsyncSession, Depends(get_session)]
 router = APIRouter(prefix="/materials", tags=["materials"])
 
 MaterialStatusFilter = Literal["草稿", "可用", "主力", "待更新", "退役"]
+MaterialTypeFilter = Literal["故事", "案例", "Demo", "金句", "段子", "行业素材"]
 
 
 @router.post("", response_model=MaterialRead, status_code=201)
@@ -30,14 +31,20 @@ async def create_material(payload: MaterialCreate, session: DbSession) -> Materi
 async def list_materials(session: DbSession,
                          q: Annotated[str | None, Query(max_length=255)] = None,
                          title: Annotated[str | None, Query(max_length=255)] = None,
+                         material_type: Annotated[
+                             MaterialTypeFilter | None, Query(alias="type")
+                         ] = None,
                          status: Annotated[MaterialStatusFilter | None, Query()] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
     where = []
     if q and q.strip():
-        where.append(Material.title.ilike(f"%{q.strip()}%"))
+        search = f"%{q.strip()}%"
+        where.append(or_(Material.title.ilike(search), Material.body.ilike(search)))
     if title is not None:
         where.append(Material.title == title)
+    if material_type is not None:
+        where.append(Material.type == material_type)
     if status is not None:
         where.append(Material.status == status)
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))

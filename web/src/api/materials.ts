@@ -10,10 +10,12 @@ export type Material = {
 export type MaterialPage = { items: Material[]; page: number; page_size: number; total: number }
 export type NewMaterial = { title: string; type: string; body: string }
 export const materialStatuses = ['草稿', '可用', '主力', '待更新', '退役'] as const
+export const materialTypes = ['故事', '案例', 'Demo', '金句', '段子', '行业素材'] as const
 
-export async function listMaterials(q = '', page = 1, status = ''): Promise<MaterialPage> {
+export async function listMaterials(q = '', page = 1, status = '', type = ''): Promise<MaterialPage> {
   const params = new URLSearchParams({ q, page: String(page) })
   if (status) params.set('status', status)
+  if (type) params.set('type', type)
   const response = await fetch(`/api/v1/materials?${params}`)
   if (!response.ok) throw new Error('素材列表加载失败')
   return response.json() as Promise<MaterialPage>
