@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, findExactTitle, getMaterial, listMaterials, materialStatuses, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, listMaterials, materialStatuses, updateMaterial, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 
 const types = ['故事', '案例', 'Demo', '金句', '段子', '行业素材']
@@ -78,5 +78,40 @@ export function MaterialDetail() {
   const [material, setMaterial] = useState<Material | null>(null)
   const [error, setError] = useState('')
   useEffect(() => { getMaterial(id).then(setMaterial).catch(reason => setError(reason instanceof Error ? reason.message : '素材加载失败')) }, [id])
-  return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link>{error && <Callout tone="risk">{error}</Callout>}{!material && !error && <p className="result-count">素材加载中…</p>}{material && <><div className="by-eyebrow by-eyebrow--tick">素材详情</div><div className="detail-title"><h1>{material.title}</h1><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p className="by-lead">{material.type || '未填写类型'}</p><Card accent className="detail-body"><h2>正文</h2><p>{material.body || '尚未填写正文'}</p></Card></>}</main>
+  return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link>{error && <Callout tone="risk">{error}</Callout>}{!material && !error && <p className="result-count">素材加载中…</p>}{material && <><div className="by-eyebrow by-eyebrow--tick">素材详情</div><div className="detail-title"><h1>{material.title}</h1><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p className="by-lead">{material.type || '未填写类型'}</p><div className="detail-actions"><Link className="primary-link" to={`/materials/${material.id}/edit`}>编辑素材</Link></div><Card accent className="detail-body"><h2>正文</h2><p>{material.body || '尚未填写正文'}</p></Card></>}</main>
+}
+
+export function MaterialEdit() {
+  const { id = '' } = useParams()
+  const navigate = useNavigate()
+  const [loaded, setLoaded] = useState(false)
+  const [title, setTitle] = useState('')
+  const [type, setType] = useState('')
+  const [body, setBody] = useState('')
+  const [status, setStatus] = useState('草稿')
+  const [loadError, setLoadError] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  useEffect(() => {
+    getMaterial(id).then(material => {
+      setTitle(material.title); setType(material.type || ''); setBody(material.body || ''); setStatus(material.status); setLoaded(true)
+    }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
+  }, [id])
+  async function submit(event: FormEvent) {
+    event.preventDefault(); setError('')
+    if (!title.trim()) { setError('标题不能为空'); return }
+    if (status !== '草稿' && (!type || !body.trim())) { setError('非草稿素材必须填写类型和正文'); return }
+    setSaving(true)
+    try { await updateMaterial(id, { title, type: type || null, body: body.trim() ? body : null, status }); navigate(`/materials/${id}`) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
+    finally { setSaving(false) }
+  }
+  return <main className="material-page by-container"><Link to={`/materials/${id}`}>← 返回素材详情</Link><div className="by-eyebrow by-eyebrow--tick">编辑素材</div><h1>编辑素材</h1><p className="by-lead">草稿可暂缺类型和正文；其他状态必须填写完整。</p>
+    {loadError && <Callout tone="risk">{loadError}</Callout>}{!loaded && !loadError && <p className="result-count">素材加载中…</p>}
+    {loaded && <Card accent className="form-card"><form onSubmit={submit} className="material-form" noValidate><label>标题<input required maxLength={255} value={title} onChange={event => setTitle(event.target.value)} /></label>
+      <label>类型<select value={type} onChange={event => setType(event.target.value)}><option value="">未填写类型</option>{types.map(item => <option key={item}>{item}</option>)}</select></label>
+      <label>正文<textarea rows={8} value={body} onChange={event => setBody(event.target.value)} /></label>
+      <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
+      {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
+  </main>
 }

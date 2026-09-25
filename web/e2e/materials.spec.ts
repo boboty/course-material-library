@@ -103,3 +103,69 @@ for (const width of [1280, 375]) {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 }
+
+for (const width of [1280, 375]) {
+  test(`edit material from detail and return with latest content at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const title = `虚构编辑 ${crypto.randomUUID()}`
+    const created = await page.request.post('/api/v1/materials', { data: { title, type: '故事', body: '编辑前虚构正文' } })
+    const { id } = await created.json()
+    const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+
+    await page.goto(`/materials/${id}`)
+    await page.getByRole('link', { name: '编辑素材' }).click()
+    await expect(page).toHaveURL(`/materials/${id}/edit`)
+    await expect(page.getByLabel('标题')).toHaveValue(title)
+    await expect(page.getByLabel('类型')).toHaveValue('故事')
+    await expect(page.getByLabel('正文')).toHaveValue('编辑前虚构正文')
+    await expect(page.getByLabel('状态')).toHaveValue('草稿')
+    await expect.poll(noOverflow).toBe(true)
+
+    await page.getByLabel('标题').fill('   ')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('alert')).toHaveText('标题不能为空')
+    await expect(page).toHaveURL(`/materials/${id}/edit`)
+
+    await page.getByLabel('标题').fill(`${title} 新`)
+    await page.getByLabel('正文').fill('')
+    await page.getByLabel('状态').selectOption('可用')
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('alert')).toHaveText('非草稿素材必须填写类型和正文')
+    expect((await (await page.request.get(`/api/v1/materials/${id}`)).json()).title).toBe(title)
+
+    await page.getByLabel('类型').selectOption('案例')
+    await page.getByLabel('正文').fill('编辑后虚构正文')
+    await page.getByLabel('状态').selectOption('主力')
+    await expect.poll(noOverflow).toBe(true)
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page).toHaveURL(`/materials/${id}`)
+    await expect(page.getByRole('heading', { name: `${title} 新` })).toBeVisible()
+    await expect(page.locator('.detail-title').getByText('主力')).toBeVisible()
+    await expect(page.getByText('案例', { exact: true })).toBeVisible()
+    await expect(page.getByText('编辑后虚构正文')).toBeVisible()
+    await expect.poll(noOverflow).toBe(true)
+    await page.reload()
+    await expect(page.getByText('编辑后虚构正文')).toBeVisible()
+  })
+}
+
+test('draft may be saved without type or body, and same title is allowed', async ({ page }) => {
+  const title = `虚构编辑同标题 ${crypto.randomUUID()}`
+  await page.request.post('/api/v1/materials', { data: { title, type: '金句', body: '已有虚构正文' } })
+  const other = await (await page.request.post('/api/v1/materials', { data: { title: `${title} 另`, type: '故事', body: '另一条' } })).json()
+  await page.goto(`/materials/${other.id}/edit`)
+  await page.getByLabel('标题').fill(title)
+  await page.getByLabel('类型').selectOption('')
+  await page.getByLabel('正文').fill('')
+  await page.getByRole('button', { name: '保存修改' }).click()
+  await expect(page.getByRole('heading', { name: title })).toBeVisible()
+  await expect(page.getByText('尚未填写正文')).toBeVisible()
+  const saved = await page.request.get(`/api/v1/materials?${new URLSearchParams({ title })}`)
+  expect((await saved.json()).total).toBe(2)
+})
+
+test('editing a missing material shows not found', async ({ page }) => {
+  await page.goto(`/materials/${crypto.randomUUID()}/edit`)
+  await expect(page.getByText('素材不存在')).toBeVisible()
+  await expect(page.getByRole('button', { name: '保存修改' })).toHaveCount(0)
+})

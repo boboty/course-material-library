@@ -5,9 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ApplicationError
 from app.db.session import get_session
 from app.models.material import Material
-from app.schemas.material import MaterialCreate, MaterialPage, MaterialRead
+from app.schemas.material import MaterialCreate, MaterialPage, MaterialRead, MaterialUpdate
 
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 
@@ -52,4 +53,21 @@ async def get_material(material_id: UUID, session: DbSession) -> Material:
     material = await session.get(Material, material_id)
     if material is None:
         raise HTTPException(status_code=404)
+    return material
+
+
+@router.put("/{material_id}", response_model=MaterialRead)
+async def update_material(material_id: UUID, payload: MaterialUpdate,
+                          session: DbSession) -> Material:
+    material = await session.get(Material, material_id)
+    if material is None:
+        raise HTTPException(status_code=404)
+    if payload.status != "草稿" and (payload.type is None or payload.body is None):
+        raise ApplicationError("MATERIAL_INCOMPLETE", "非草稿素材必须填写类型和正文", 422)
+    material.title = payload.title
+    material.type = payload.type
+    material.body = payload.body
+    material.status = payload.status
+    await session.commit()
+    await session.refresh(material)
     return material

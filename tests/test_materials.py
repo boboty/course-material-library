@@ -195,3 +195,82 @@ def test_exact_title_query_does_not_normalize_or_fuzzy_match(client: TestClient)
         result = client.get("/api/v1/materials", params={"title": variant})
         assert result.status_code == 200
         assert result.json()["total"] == 0
+
+
+def _create(client: TestClient, title: str) -> str:
+    response = client.post("/api/v1/materials",
+                           json={"title": title, "type": "故事", "body": "虚构正文"})
+    assert response.status_code == 201
+    return response.json()["id"]
+
+
+def test_update_basic_fields_and_status(client: TestClient) -> None:
+    material_id = _create(client, f"虚构编辑 {uuid4().hex}")
+    new_title = f"  虚构新标题 {uuid4().hex}  "
+    response = client.put(f"/api/v1/materials/{material_id}", json={
+        "title": new_title, "type": "案例", "body": " 新正文 ", "status": "主力",
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["title"], body["type"], body["body"], body["status"]) == (
+        new_title.strip(), "案例", "新正文", "主力")
+    detail = client.get(f"/api/v1/materials/{material_id}").json()
+    assert detail["title"] == new_title.strip() and detail["status"] == "主力"
+    for status in MATERIAL_STATUSES:
+        assert client.put(f"/api/v1/materials/{material_id}", json={
+            "title": "虚构", "type": "Demo", "body": "正文", "status": status,
+        }).json()["status"] == status
+
+
+def test_update_draft_allows_incomplete_content(client: TestClient) -> None:
+    material_id = _create(client, f"虚构草稿 {uuid4().hex}")
+    response = client.put(f"/api/v1/materials/{material_id}", json={
+        "title": "虚构草稿", "type": None, "body": "   ", "status": "草稿",
+    })
+    assert response.status_code == 200
+    assert response.json()["type"] is None and response.json()["body"] is None
+
+
+@pytest.mark.parametrize("patch", [
+    {"type": None}, {"body": None}, {"body": "  "}, {"type": None, "body": None},
+])
+def test_update_non_draft_requires_type_and_body(client: TestClient,
+                                                 patch: dict[str, object]) -> None:
+    material_id = _create(client, f"虚构不完整 {uuid4().hex}")
+    before = client.get(f"/api/v1/materials/{material_id}").json()
+    payload = {"title": "虚构", "type": "故事", "body": "正文", "status": "可用", **patch}
+    response = client.put(f"/api/v1/materials/{material_id}", json=payload)
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "MATERIAL_INCOMPLETE"
+    assert client.get(f"/api/v1/materials/{material_id}").json() == before
+
+
+@pytest.mark.parametrize("patch", [
+    {"title": ""}, {"title": "   "}, {"title": "x" * 256}, {"type": "小说"}, {"status": "归档"},
+    {"status": None}, {"status": ""}, {"source_note": "多余字段"},
+])
+def test_update_rejects_invalid_payload(client: TestClient, patch: dict[str, object]) -> None:
+    material_id = _create(client, f"虚构非法 {uuid4().hex}")
+    before = client.get(f"/api/v1/materials/{material_id}").json()
+    payload = {"title": "虚构", "type": "故事", "body": "正文", "status": "可用", **patch}
+    assert client.put(f"/api/v1/materials/{material_id}", json=payload).status_code == 422
+    assert client.get(f"/api/v1/materials/{material_id}").json() == before
+
+
+def test_update_to_existing_title_is_allowed(client: TestClient) -> None:
+    title = f"虚构同标题 {uuid4().hex}"
+    _create(client, title)
+    other = _create(client, f"虚构另一条 {uuid4().hex}")
+    response = client.put(f"/api/v1/materials/{other}", json={
+        "title": title, "type": "故事", "body": "正文", "status": "可用",
+    })
+    assert response.status_code == 200
+    assert client.get("/api/v1/materials", params={"title": title}).json()["total"] == 2
+
+
+def test_update_missing_material_returns_404(client: TestClient) -> None:
+    response = client.put(f"/api/v1/materials/{uuid4()}", json={
+        "title": "虚构", "type": "故事", "body": "正文", "status": "可用",
+    })
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "NOT_FOUND"

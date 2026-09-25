@@ -40,3 +40,17 @@ export async function createMaterial(payload: NewMaterial): Promise<Material> {
   if (!response.ok) throw new Error('保存失败，请检查标题、类型和正文')
   return response.json() as Promise<Material>
 }
+
+export type MaterialUpdate = { title: string; type: string | null; body: string | null; status: string }
+
+export async function updateMaterial(id: string, payload: MaterialUpdate): Promise<Material> {
+  const response = await fetch(`/api/v1/materials/${encodeURIComponent(id)}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('素材不存在')
+    const result = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null
+    throw new Error(result?.error?.code === 'MATERIAL_INCOMPLETE' ? result.error.message || '非草稿素材必须填写类型和正文' : '保存失败，请检查标题、类型、正文和状态')
+  }
+  return response.json() as Promise<Material>
+}
