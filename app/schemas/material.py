@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.material import MATERIAL_TYPES
-from app.schemas.course import CourseRead
+from app.schemas.course import CourseRead, VocabularyRead
 
 
 class MaterialCreate(BaseModel):
@@ -43,6 +43,8 @@ class MaterialUpdate(BaseModel):
     speaking_notes: str | None = None
     source_note: str | None = None
     course_ids: list[UUID] | None = None
+    audience_type_ids: list[UUID] | None = None
+    industry_ids: list[UUID] | None = None
     status: Literal["草稿", "可用", "主力", "待更新", "退役"]
 
     @field_validator("title")
@@ -96,6 +98,8 @@ class MaterialRead(BaseModel):
     speaking_notes: str | None
     source_note: str | None
     courses: list[CourseRead]
+    audience_types: list[VocabularyRead]
+    industries: list[VocabularyRead]
     status: str
     created_at: datetime
     updated_at: datetime

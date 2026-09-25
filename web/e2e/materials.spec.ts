@@ -149,6 +149,65 @@ for (const width of [1280, 375]) {
 }
 
 for (const width of [1280, 375]) {
+  test(`material audience and industry associations load all choices at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+
+    async function ensureSecondPageChoices(path: string, label: string) {
+      let result = await (await page.request.get(`${path}?page=1&page_size=100`)).json() as {
+        items: Array<{ id: string; name: string }>; total: number
+      }
+      while (result.total <= 100) {
+        const batch = Math.min(100 - result.total + 1, 25)
+        const created = await Promise.all(Array.from({ length: batch }, async () => {
+          const response = await page.request.post(path, {
+            data: { name: `虚构${label}候选 ${crypto.randomUUID()}` },
+          })
+          expect(response.ok()).toBe(true)
+          return response.json() as Promise<{ id: string; name: string }>
+        }))
+        result = { ...result, total: result.total + created.length }
+      }
+      const pageTwo = await (await page.request.get(`${path}?page=2&page_size=100`)).json() as {
+        items: Array<{ id: string; name: string }>
+      }
+      expect(pageTwo.items.length).toBeGreaterThan(0)
+      return pageTwo.items[0]
+    }
+
+    const audience = await ensureSecondPageChoices('/api/v1/audience-types', '人群')
+    const industry = await ensureSecondPageChoices('/api/v1/industries', '行业')
+    const title = `虚构适用关联 ${crypto.randomUUID()}`
+    const created = await page.request.post('/api/v1/materials', {
+      data: { title, type: '案例', body: '虚构适用关系正文' },
+    })
+    expect(created.ok()).toBe(true)
+    const material = await created.json() as { id: string }
+
+    await page.goto(`/materials/${material.id}/edit`)
+    await expect(page.getByRole('heading', { name: '编辑素材' })).toBeVisible()
+    await expect(page.getByLabel(audience.name)).toBeVisible()
+    await expect(page.getByLabel(industry.name)).toBeVisible()
+    await page.getByLabel(audience.name).check()
+    await page.getByLabel(industry.name).check()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.getByText(audience.name, { exact: true })).toBeVisible()
+    await expect(page.getByText(industry.name, { exact: true })).toBeVisible()
+
+    await page.goto(`/materials/${material.id}/edit`)
+    await expect(page.getByLabel(audience.name)).toBeChecked()
+    await expect(page.getByLabel(industry.name)).toBeChecked()
+    await page.getByLabel(audience.name).uncheck()
+    await page.getByLabel(industry.name).uncheck()
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '适用人群' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: '适用行业' })).toHaveCount(0)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material type, body search and combined filters work at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const marker = crypto.randomUUID()

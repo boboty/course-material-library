@@ -7,6 +7,7 @@ import { Callout } from '../../../ui/design-system/components/surfaces/Callout.j
 import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 import { listAllCourses, type Course } from '../api/courses'
+import { listAllAudienceTypes, listAllIndustries, type Vocabulary } from '../api/vocabularies'
 
 export function MaterialList() {
   const [params, setParams] = useSearchParams()
@@ -178,6 +179,8 @@ export function MaterialDetail() {
     {material.speaking_notes && <Card accent className="detail-body"><h2>讲法要点</h2><p>{material.speaking_notes}</p></Card>}
     {material.source_note && <Card accent className="detail-body"><h2>来源备注（仅内部可见）</h2><p>{material.source_note}</p></Card>}
     <Card accent className="detail-body"><h2>关联课程</h2><p>{material.courses.length ? material.courses.map(course => `${course.name}${course.status === '停用' ? '（停用）' : ''}`).join('、') : '暂无关联课程'}</p></Card>
+    {material.audience_types.length > 0 && <Card accent className="detail-body"><h2>适用人群</h2><p>{material.audience_types.map(item => item.name).join('、')}</p></Card>}
+    {material.industries.length > 0 && <Card accent className="detail-body"><h2>适用行业</h2><p>{material.industries.map(item => item.name).join('、')}</p></Card>}
   </>}</main>
 }
 
@@ -193,17 +196,23 @@ export function MaterialEdit() {
   const [sourceNote, setSourceNote] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
   const [courseIds, setCourseIds] = useState<string[]>([])
+  const [audienceTypes, setAudienceTypes] = useState<Vocabulary[]>([])
+  const [audienceTypeIds, setAudienceTypeIds] = useState<string[]>([])
+  const [industries, setIndustries] = useState<Vocabulary[]>([])
+  const [industryIds, setIndustryIds] = useState<string[]>([])
   const [status, setStatus] = useState('草稿')
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
-    Promise.all([getMaterial(id), listAllCourses()]).then(([material, allCourses]) => {
+    Promise.all([getMaterial(id), listAllCourses(), listAllAudienceTypes(), listAllIndustries()]).then(([material, allCourses, allAudienceTypes, allIndustries]) => {
       setTitle(material.title); setType(material.type || ''); setBody(material.body || '')
       setSupportingJudgment(material.supporting_judgment || '')
       setSpeakingNotes(material.speaking_notes || '')
       setSourceNote(material.source_note || '')
       setCourses(allCourses); setCourseIds(material.courses.map(course => course.id))
+      setAudienceTypes(allAudienceTypes); setAudienceTypeIds(material.audience_types.map(item => item.id))
+      setIndustries(allIndustries); setIndustryIds(material.industries.map(item => item.id))
       setStatus(material.status); setLoaded(true)
     }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
   }, [id])
@@ -218,6 +227,8 @@ export function MaterialEdit() {
       speaking_notes: speakingNotes.trim() || null,
       source_note: sourceNote.trim() || null,
       course_ids: courseIds,
+      audience_type_ids: audienceTypeIds,
+      industry_ids: industryIds,
       status,
     }); navigate(`/materials/${id}`) }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
@@ -232,6 +243,8 @@ export function MaterialEdit() {
       <label>讲法要点<textarea rows={4} value={speakingNotes} onChange={event => setSpeakingNotes(event.target.value)} /></label>
       <label>来源备注（仅内部可见）<textarea rows={4} value={sourceNote} onChange={event => setSourceNote(event.target.value)} /></label>
       <fieldset><legend>关联课程</legend><p>可选择多门课程；不选择表示无关联。</p>{courses.map(course => <label key={course.id}><input type="checkbox" checked={courseIds.includes(course.id)} onChange={event => setCourseIds(current => event.target.checked ? [...current, course.id] : current.filter(value => value !== course.id))} />{course.name}{course.status === '停用' ? '（停用）' : ''}</label>)}</fieldset>
+      <fieldset><legend>适用人群</legend><p>可多选；不选择表示不限定适用人群。</p>{audienceTypes.map(item => <label key={item.id}><input type="checkbox" checked={audienceTypeIds.includes(item.id)} onChange={event => setAudienceTypeIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
+      <fieldset><legend>适用行业</legend><p>可多选；不选择表示不限定适用行业。</p>{industries.map(item => <label key={item.id}><input type="checkbox" checked={industryIds.includes(item.id)} onChange={event => setIndustryIds(current => event.target.checked ? [...current, item.id] : current.filter(value => value !== item.id))} />{item.name}</label>)}</fieldset>
       <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
       {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
   </main>

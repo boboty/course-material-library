@@ -24,6 +24,7 @@
 - Task 17: PASS
 - Task 18: PASS
 - Task 19: PASS
+- Task 20: PASS
 
 ## 已验收基线
 
@@ -54,8 +55,10 @@
 - Task 18 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 18 material course filter`（父提交 `cadc963`）
 - Task 18 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55440，`benyan_test` / `benyan_e2e`，新建空库迁移至单一 head `0005_material_courses`；未使用 .env 中的远程库，也未使用 5432 上已有实例）；`make check` 通过（ruff、pyright 0 errors、后端 163 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 37 passed（含 1280px / 375px 超过 100 门课程的逐页候选、停用课程、组合筛选、第一页重置、翻页保留条件与无横向溢出），`git diff --check` 通过。审查确认：`course_id` 为可选 UUID，非法值 422 `VALIDATION_ERROR`、不存在课程 404 `NOT_FOUND`；筛选使用 `Material.courses.any(...)`，与关键词、类型、状态共同作用于 total 与分页；停用课程可筛选；未传时行为不变；前端所有筛选与翻页均携带 course_id，变更回第一页；无 schema / migration / 关联关系写入变更。测试改动审查：`tests/test_demo_data.py` 由固定 `5432` 改为从 `TEST_DATABASE_URL` 取端口（缺省仍 5432），断言仍校验展示的主机、端口、库名，强度未降低，仅使其支持非默认端口的隔离库；E2E 关联课程详情断言由要求固定拼接顺序 `A、B` 改为在“关联课程”卡片内分别包含两门课程名，因为 `Material.courses` 关系无 `order_by`、后端未定义返回顺序，两门课程均须出现的核心断言保留，属合理放宽；`tests/test_materials.py` 仅新增用例，未修改既有断言。限制：未在 Docker Compose 环境复测；在已被前次运行污染的测试库上重复运行 `make check` 会失败（既有问题，非本 Task 引入）：`scripts/demo_data.py` 的 clean 未先清空 `material_courses`，含课程关联的素材会令 `demo-clean` 触发外键错误（Task 16 遗留，建议后续单独处理），另有旧类型筛选测试使用非唯一关键词；`test_demo_shows_target...` 依赖测试库 URL 主机名为 `localhost`；候选课程仍为 offset 逐页读取，课程量很大时的前端加载开销未评估。
 - Task 19 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `fix: complete task 19 demo cleanup material course association`
+- Task 20 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 20 material audience and industries`
+- Task 20 独立验收时（RC 后全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（localhost:57433，`benyan_test` / `benyan_e2e`，迁移至单一 head `0006_mat_aud_ind`；未使用 .env 远程库，也未使用 5432 与他人占用的 55433 实例，验收后停止并删除）；RC 问题复现与复验：在库中写入虚构素材 + 人群 + 行业 + 两种新关联后，用 HEAD 版 `demo_data.py` 执行 clean，`DELETE FROM materials` 触发外键错误（复现原 RC）；当前版本 clean 成功（关联与素材全为 0），带关联连续两轮 seed 均成功（新增关联清为 0、重建 7 素材），最后 clean 成功；`make check` 在同一 `benyan_test` 上连续两次均通过（ruff、pyright 0 errors、后端 164 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 39 passed（含 1280px / 375px 超过 100 条候选逐页取全），`git diff --check` 通过。审查确认：PUT 省略保留、显式数组整体替换、空数组清空；重复 / 不存在 ID 返回 422 且校验先于任何赋值，不部分更新；详情仅展示已关联项；快速录入无新增必填项；migration 单一 head，仅新增两张关联表及索引，旧素材关系为空数组仍可读；范围内无筛选、标签等越界内容；未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；目标展示测试用例依赖测试库主机名为 `localhost`（既有前提）；候选集仍为 offset 逐页读取，并发写入时分页一致性未保证。
 - Task 19 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55471，`benyan_test` / `benyan_e2e`，迁移至单一 head `0005_material_courses`；未使用 .env 数据库，已停止并删除）；手工在库中先写入虚构素材 + 课程 + `material_courses` 关联：连续两轮 `demo-data` 均成功（关联表清为 0，重建 7 素材 / 2 课程 / 3 场次），连续两轮 `demo-clean` 均成功（关联、素材、课程、场次全为 0，alembic 版本保留）；输入 `no`、空行、EOF 取消退出码 0 且数据零变化，`APP_ENV=production` 被拒绝且数据零变化；`make check` 通过（ruff、pyright 0 errors、后端 163 passed、E2E 数据库门禁、前端 14 passed、build），同一测试库上连续重复运行 `make check` 亦通过，`make smoke` 通过，`make e2e` 37 passed，`git diff --check` 通过。审查确认：diff 仅为 `scripts/demo_data.py` 增加 `delete(material_courses)`（位于 Material / Course 删除之前，仍在同一事务）、`tests/test_demo_data.py` 每轮 seed / clean 前写入虚构旧行业 / 人群 / 课程 / 素材 / 关联并断言关联表计数；原有 production、目标展示、精确 `yes`、取消零变化测试未改动；无 schema / migration / API / 前端变更，未新增 Demo 关联数据，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；目标展示测试依赖测试库 URL 主机名为 `localhost`（既有前提）；未对旧版代码做反向复现（依据 Task 18 验收记录与新增回归测试覆盖）。
-- Migration head: 0005_material_courses（单一 head）
+- Migration head: 0006_mat_aud_ind（单一 head；Task 20 新增素材适用人群与行业关联表）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -96,6 +99,7 @@
 - Task 13 施工判断：素材列表 `type` 为可选单值筛选，值限定为现有六种素材类型；关键词以不区分大小写的子串匹配标题或正文，空正文不影响查询；关键词、类型、状态共同约束 total 和分页。任意筛选或关键词变化回到第一页，翻页保留全部条件。非法类型（含空值、多值）返回既有 422 `VALIDATION_ERROR`。不加入标签搜索、其他维度筛选或相关度排序。
 - Task 17 施工判断：场次计划素材页以场次主课程匹配 `Material.courses`，关联素材优先；各组内部保留素材 API 原有 `created_at desc, id desc` 次序。搜索仍调用全库查询，课程关联只排序、不限制候选或计划资格；不新增推荐分数、筛选或 schema。
 - Task 18 施工判断：素材列表通过可选 `course_id` 筛选关联素材，停用课程同样有效；非法 UUID 返回 422、不存在课程返回 404。课程关系条件与关键词、类型、状态共同约束 total 和分页；课程候选经 `listAllCourses` 逐页取全，筛选变化回第一页、翻页保留全部条件；不新增 schema / migration。
+- Task 20 冻结判断：适用人群和适用行业均复用现有基础词表，素材关系可选、多选；PUT 字段省略保留关系，显式数组整体替换、空数组清空；重复 ID、非法 UUID、不存在词表项返回 422，验证失败不修改素材或关系；候选沿用既有 page_size 上限并逐页取全；详情只展示已关联值；快速录入不增加必填项，不增加筛选、标签或基础词表语义。
 
 ## 当前已实现
 
@@ -120,29 +124,23 @@
 - Task 16：素材与课程多对多关系；编辑可选择多门课程，详情展示关联课程，停用课程保留
 - Task 17：场次计划素材候选按场次主课程关联优先显示；全库搜索、非关联素材加入与撤销计划仍可用
 - Task 18：素材列表增加课程单选筛选；与关键词、类型和状态组合，total / 分页使用同一条件；启用及停用课程候选逐页取全；筛选变化回第一页且翻页保留条件
+- Task 20：素材与人群类型、行业多对多关系；编辑页完整候选多选；详情展示已关联项；PUT 支持省略保留、整体替换和空数组清空；旧素材经 migration 升级后继续可读
 
 ## 当前尚未具备
 
-- 素材扩展字段（标签、适用人群 / 行业等）的编辑、素材家族
+- 素材标签编辑、素材家族
 - 同客户 / 同集团重复提醒、连续差评及系统复核提示
 - 课后登记完成状态字段（V1 不建设）
 - 后端分页聚合 / 游标接口、可搜索的大候选集下拉（本 Task 明确不做）
 
 ## 当前任务
 
-- 无进行中的 Task。Task 19（修复 Demo 清理对素材课程关联的兼容性）已 PASS；`demo-clean` / `demo-data` 现先清理 `material_courses`，确认门禁与 Demo 数据内容不变。
+- 无进行中的 Task。
 
 ## 上一已验收任务摘要
 
-- Task 13：素材类型筛选与正文关键词搜索 —— PASS（Independent Verifier 独立验收）。
-  - 后端：`GET /api/v1/materials` 增加单值 `type` 查询参数，限定现有六种类型；`q` 在标题或正文执行不区分大小写子串匹配。类型、状态、关键词同时用于 total 与分页；`body IS NULL` 可正常查询；非法类型沿用 422 `VALIDATION_ERROR`。
-  - 前端：素材列表增加“全部类型”及六种类型单选；关键词输入提示改为“搜索标题或正文”；URL 驱动的类型、状态、关键词条件在筛选变更时回第一页，翻页保留全部条件。复用现有设计系统表单样式，无 CSS / 依赖变更。
-  - Schema / migration：无变更；Migration head 仍为 `0003_usages`。
-  - 测试新增：后端验证六种类型、标题命中、正文命中、空正文、组合筛选 total / 分页、非法类型；E2E 在 1280px / 375px 验证类型和状态组合、条件变更回第一页、超过 20 条组合结果翻页保留 URL 条件与无横向溢出。
-  - Developer 自验：临时本机 PostgreSQL 17（`/private/tmp/cml-task13-pg.*`，数据库 `benyan_test` / `benyan_e2e`）迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 156 passed、E2E DB 门禁、前端 14 passed、build）；`make smoke` 通过（health / not-found）；`make e2e` 28 passed（含 1280px / 375px 新筛选和组合分页）；`git diff --check` 通过。
-  - 数据边界：测试仅使用虚构数据与随机标记；未发现真实业务数据或 Secret；无 schema / migration 变更。
-  - 风险 / 限制：未在 Docker Compose 环境复测；`%` / `_` 通配符沿用既有行为。
+- Task 20：素材适用人群与行业 —— PASS（Independent Verifier 独立验收，RC 修复复验通过）。素材与人群类型、行业多对多；编辑页完整候选多选，详情仅展示已关联项；Demo 清理先于实体删除关联表。证据见 Task 20 独立验收记录。
 
 ## 下一步
 
-- 由 Orchestrator 规划下一个 Task；push / merge 须人工授权。
+- Task 21：素材标签（见 TASK_BOARD.md）。Task 20 的 push / merge 须人工授权。

@@ -1,4 +1,5 @@
 import type { Course } from './courses'
+import type { Vocabulary } from './client'
 import { fetchAllPages } from './client'
 
 export type Material = {
@@ -10,6 +11,8 @@ export type Material = {
   speaking_notes: string | null
   source_note: string | null
   courses: Course[]
+  audience_types: Vocabulary[]
+  industries: Vocabulary[]
   status: string
   created_at: string
   updated_at: string
@@ -76,6 +79,8 @@ export type MaterialUpdate = {
   speaking_notes: string | null
   source_note: string | null
   course_ids: string[]
+  audience_type_ids: string[]
+  industry_ids: string[]
   status: string
 }
 

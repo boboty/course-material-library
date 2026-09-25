@@ -61,6 +61,65 @@ def test_material_course_associations_replace_atomically(client: TestClient) -> 
     assert cleared.json()["courses"] == []
 
 
+def test_material_audience_and_industry_associations_replace_atomically(client: TestClient) -> None:
+    audience_a = client.post("/api/v1/audience-types", json={
+        "name": f"虚构人群甲-{uuid4()}"}).json()
+    audience_b = client.post("/api/v1/audience-types", json={
+        "name": f"虚构人群乙-{uuid4()}"}).json()
+    industry_a = client.post("/api/v1/industries", json={
+        "name": f"虚构行业甲-{uuid4()}"}).json()
+    industry_b = client.post("/api/v1/industries", json={
+        "name": f"虚构行业乙-{uuid4()}"}).json()
+    created = client.post("/api/v1/materials", json={
+        "title": f"旧素材兼容 {uuid4().hex}", "type": "故事", "body": "虚构正文",
+    })
+    assert created.status_code == 201
+    material_id = created.json()["id"]
+    url = f"/api/v1/materials/{material_id}"
+    assert created.json()["audience_types"] == []
+    assert created.json()["industries"] == []
+    base = {"title": created.json()["title"], "type": "故事",
+            "body": "虚构正文", "status": "草稿"}
+
+    selected = client.put(url, json={**base,
+        "audience_type_ids": [audience_a["id"], audience_b["id"]],
+        "industry_ids": [industry_a["id"], industry_b["id"]],
+    })
+    assert selected.status_code == 200
+    assert {item["id"] for item in selected.json()["audience_types"]} == {
+        audience_a["id"], audience_b["id"]}
+    assert {item["id"] for item in selected.json()["industries"]} == {
+        industry_a["id"], industry_b["id"]}
+
+    omitted = client.put(url, json={**base, "title": f"保留关联 {uuid4().hex}"})
+    assert omitted.status_code == 200
+    assert {item["id"] for item in omitted.json()["audience_types"]} == {
+        audience_a["id"], audience_b["id"]}
+    assert {item["id"] for item in omitted.json()["industries"]} == {
+        industry_a["id"], industry_b["id"]}
+    for field, invalid_values in (
+        ("audience_type_ids", [[audience_a["id"], audience_a["id"]],
+                                [audience_a["id"], str(uuid4())], ["bad-id"]]),
+        ("industry_ids", [[industry_a["id"], industry_a["id"]],
+                           [industry_a["id"], str(uuid4())], ["bad-id"]]),
+    ):
+        for invalid in invalid_values:
+            response = client.put(url, json={**base, "title": "不得部分更新",
+                                             field: invalid})
+            assert response.status_code == 422
+            unchanged = client.get(url).json()
+            assert unchanged["title"] == omitted.json()["title"]
+            assert {item["id"] for item in unchanged["audience_types"]} == {
+                audience_a["id"], audience_b["id"]}
+            assert {item["id"] for item in unchanged["industries"]} == {
+                industry_a["id"], industry_b["id"]}
+
+    cleared = client.put(url, json={**base, "audience_type_ids": [], "industry_ids": []})
+    assert cleared.status_code == 200
+    assert cleared.json()["audience_types"] == []
+    assert cleared.json()["industries"] == []
+
+
 def test_course_filter_combines_with_existing_filters_and_pagination(client: TestClient) -> None:
     marker = uuid4().hex
     first = create_course(client)

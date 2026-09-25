@@ -9,6 +9,7 @@ from app.core.exceptions import ApplicationError
 from app.db.session import get_session
 from app.models.course import Course
 from app.models.material import Material
+from app.models.vocabulary import AudienceType, Industry
 from app.schemas.material import (
     MaterialCreate,
     MaterialMarkdownImport,
@@ -155,6 +156,8 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
     if payload.status != "草稿" and (payload.type is None or payload.body is None):
         raise ApplicationError("MATERIAL_INCOMPLETE", "非草稿素材必须填写类型和正文", 422)
     courses = None
+    audience_types = None
+    industries = None
     if "course_ids" in payload.model_fields_set:
         course_ids = payload.course_ids or []
         if len(course_ids) != len(set(course_ids)):
@@ -163,6 +166,22 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         courses = list(course_rows.all())
         if len(courses) != len(course_ids):
             raise ApplicationError("COURSE_IDS_INVALID", "课程不存在", 422)
+    if "audience_type_ids" in payload.model_fields_set:
+        identifiers = payload.audience_type_ids or []
+        if len(identifiers) != len(set(identifiers)):
+            raise ApplicationError("MATERIAL_VOCABULARY_IDS_INVALID", "人群类型 ID 不能重复", 422)
+        rows = await session.scalars(select(AudienceType).where(AudienceType.id.in_(identifiers)))
+        audience_types = list(rows.all())
+        if len(audience_types) != len(identifiers):
+            raise ApplicationError("MATERIAL_VOCABULARY_IDS_INVALID", "人群类型不存在", 422)
+    if "industry_ids" in payload.model_fields_set:
+        identifiers = payload.industry_ids or []
+        if len(identifiers) != len(set(identifiers)):
+            raise ApplicationError("MATERIAL_VOCABULARY_IDS_INVALID", "行业 ID 不能重复", 422)
+        rows = await session.scalars(select(Industry).where(Industry.id.in_(identifiers)))
+        industries = list(rows.all())
+        if len(industries) != len(identifiers):
+            raise ApplicationError("MATERIAL_VOCABULARY_IDS_INVALID", "行业不存在", 422)
     material.title = payload.title
     material.type = payload.type
     material.body = payload.body
@@ -175,6 +194,10 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
     material.status = payload.status
     if courses is not None:
         material.courses = courses
+    if audience_types is not None:
+        material.audience_types = audience_types
+    if industries is not None:
+        material.industries = industries
     await session.commit()
     await session.refresh(material)
     return material
