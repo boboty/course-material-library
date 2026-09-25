@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ApplicationError
 from app.db.session import get_session
+from app.models.course import Course
 from app.models.material import Material
 from app.schemas.material import (
     MaterialCreate,
@@ -147,6 +148,15 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
         raise HTTPException(status_code=404)
     if payload.status != "草稿" and (payload.type is None or payload.body is None):
         raise ApplicationError("MATERIAL_INCOMPLETE", "非草稿素材必须填写类型和正文", 422)
+    courses = None
+    if "course_ids" in payload.model_fields_set:
+        course_ids = payload.course_ids or []
+        if len(course_ids) != len(set(course_ids)):
+            raise ApplicationError("COURSE_IDS_INVALID", "课程 ID 不能重复", 422)
+        course_rows = await session.scalars(select(Course).where(Course.id.in_(course_ids)))
+        courses = list(course_rows.all())
+        if len(courses) != len(course_ids):
+            raise ApplicationError("COURSE_IDS_INVALID", "课程不存在", 422)
     material.title = payload.title
     material.type = payload.type
     material.body = payload.body
@@ -157,6 +167,8 @@ async def update_material(material_id: UUID, payload: MaterialUpdate,
     if "source_note" in payload.model_fields_set:
         material.source_note = payload.source_note
     material.status = payload.status
+    if courses is not None:
+        material.courses = courses
     await session.commit()
     await session.refresh(material)
     return material

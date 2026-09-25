@@ -6,6 +6,7 @@ import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
 import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
+import { listAllCourses, type Course } from '../api/courses'
 
 export function MaterialList() {
   const [params, setParams] = useSearchParams()
@@ -162,6 +163,7 @@ export function MaterialDetail() {
     {material.supporting_judgment && <Card accent className="detail-body"><h2>支撑什么判断</h2><p>{material.supporting_judgment}</p></Card>}
     {material.speaking_notes && <Card accent className="detail-body"><h2>讲法要点</h2><p>{material.speaking_notes}</p></Card>}
     {material.source_note && <Card accent className="detail-body"><h2>来源备注（仅内部可见）</h2><p>{material.source_note}</p></Card>}
+    <Card accent className="detail-body"><h2>关联课程</h2><p>{material.courses.length ? material.courses.map(course => `${course.name}${course.status === '停用' ? '（停用）' : ''}`).join('、') : '暂无关联课程'}</p></Card>
   </>}</main>
 }
 
@@ -175,16 +177,19 @@ export function MaterialEdit() {
   const [supportingJudgment, setSupportingJudgment] = useState('')
   const [speakingNotes, setSpeakingNotes] = useState('')
   const [sourceNote, setSourceNote] = useState('')
+  const [courses, setCourses] = useState<Course[]>([])
+  const [courseIds, setCourseIds] = useState<string[]>([])
   const [status, setStatus] = useState('草稿')
   const [loadError, setLoadError] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   useEffect(() => {
-    getMaterial(id).then(material => {
+    Promise.all([getMaterial(id), listAllCourses()]).then(([material, allCourses]) => {
       setTitle(material.title); setType(material.type || ''); setBody(material.body || '')
       setSupportingJudgment(material.supporting_judgment || '')
       setSpeakingNotes(material.speaking_notes || '')
       setSourceNote(material.source_note || '')
+      setCourses(allCourses); setCourseIds(material.courses.map(course => course.id))
       setStatus(material.status); setLoaded(true)
     }).catch(reason => setLoadError(reason instanceof Error ? reason.message : '素材加载失败'))
   }, [id])
@@ -198,6 +203,7 @@ export function MaterialEdit() {
       supporting_judgment: supportingJudgment.trim() || null,
       speaking_notes: speakingNotes.trim() || null,
       source_note: sourceNote.trim() || null,
+      course_ids: courseIds,
       status,
     }); navigate(`/materials/${id}`) }
     catch (reason) { setError(reason instanceof Error ? reason.message : '保存失败') }
@@ -211,6 +217,7 @@ export function MaterialEdit() {
       <label>支撑什么判断<textarea rows={4} value={supportingJudgment} onChange={event => setSupportingJudgment(event.target.value)} /></label>
       <label>讲法要点<textarea rows={4} value={speakingNotes} onChange={event => setSpeakingNotes(event.target.value)} /></label>
       <label>来源备注（仅内部可见）<textarea rows={4} value={sourceNote} onChange={event => setSourceNote(event.target.value)} /></label>
+      <fieldset><legend>关联课程</legend><p>可选择多门课程；不选择表示无关联。</p>{courses.map(course => <label key={course.id}><input type="checkbox" checked={courseIds.includes(course.id)} onChange={event => setCourseIds(current => event.target.checked ? [...current, course.id] : current.filter(value => value !== course.id))} />{course.name}{course.status === '停用' ? '（停用）' : ''}</label>)}</fieldset>
       <label>状态<select value={status} onChange={event => setStatus(event.target.value)}>{materialStatuses.map(item => <option key={item}>{item}</option>)}</select></label>
       {error && <Callout tone="risk" role="alert">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存修改'}</Button></form></Card>}
   </main>

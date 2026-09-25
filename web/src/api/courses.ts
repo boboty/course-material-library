@@ -37,3 +37,9 @@ export async function listEnabledCourses(): Promise<Course[]> {
     status: '启用', page, page_size: pageSize,
   })}`), course => course.id)
 }
+
+export async function listAllCourses(): Promise<Course[]> {
+  return fetchAllPages((page, pageSize) => request<Page<Course>>(`/api/v1/courses?${pageQuery({
+    page, page_size: pageSize,
+  })}`), course => course.id)
+}

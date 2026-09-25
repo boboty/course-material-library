@@ -1,3 +1,5 @@
+import type { Course } from './courses'
+
 export type Material = {
   id: string
   title: string
@@ -6,6 +8,7 @@ export type Material = {
   supporting_judgment: string | null
   speaking_notes: string | null
   source_note: string | null
+  courses: Course[]
   status: string
   created_at: string
   updated_at: string
@@ -64,6 +67,7 @@ export type MaterialUpdate = {
   supporting_judgment: string | null
   speaking_notes: string | null
   source_note: string | null
+  course_ids: string[]
   status: string
 }
 

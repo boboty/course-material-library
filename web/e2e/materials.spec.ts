@@ -219,6 +219,30 @@ for (const width of [1280, 375]) {
 }
 
 for (const width of [1280, 375]) {
+  test(`material course associations at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const firstName = `虚构课程甲 ${crypto.randomUUID()}`
+    const secondName = `虚构课程乙 ${crypto.randomUUID()}`
+    await page.request.post('/api/v1/courses', { data: { name: firstName } })
+    await page.request.post('/api/v1/courses', { data: { name: secondName } })
+    const material = await (await page.request.post('/api/v1/materials', { data: {
+      title: `虚构关联素材 ${crypto.randomUUID()}`, type: '故事', body: '虚构正文',
+    } })).json()
+    await page.goto(`/materials/${material.id}/edit`)
+    await page.getByRole('checkbox', { name: firstName }).check()
+    await page.getByRole('checkbox', { name: secondName }).check()
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page).toHaveURL(`/materials/${material.id}`)
+    await expect(page.getByRole('heading', { name: '关联课程' })).toBeVisible()
+    await expect(page.getByText(`${firstName}、${secondName}`)).toBeVisible()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.goto(`/materials/${material.id}/edit`)
+    await page.getByRole('checkbox', { name: firstName }).uncheck()
+    await page.getByRole('checkbox', { name: secondName }).uncheck()
+    await page.getByRole('button', { name: '保存修改' }).click()
+    await expect(page.getByText('暂无关联课程')).toBeVisible()
+  })
+
   test(`edit material from detail and return with latest content at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const title = `虚构编辑 ${crypto.randomUUID()}`

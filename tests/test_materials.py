@@ -14,11 +14,51 @@ from sqlalchemy.pool import NullPool
 from app.db.session import get_session
 from app.main import app
 from app.models.material import MATERIAL_STATUSES, Material
+from tests.helpers import create_course
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://benyan:benyan_local@localhost:5432/benyan_test"
 )
 assert TEST_DATABASE_URL.endswith("/benyan_test")
+
+
+def test_material_course_associations_replace_atomically(client: TestClient) -> None:
+    first = create_course(client)
+    second = create_course(client)
+    created = client.post("/api/v1/materials", json={
+        "title": f"虚构课程关联 {uuid4().hex}", "type": "故事", "body": "虚构正文",
+    })
+    assert created.status_code == 201
+    material_id = created.json()["id"]
+    assert created.json()["courses"] == []
+    url = f"/api/v1/materials/{material_id}"
+    base = {"title": created.json()["title"], "type": "故事",
+            "body": "虚构正文", "status": "草稿"}
+
+    one = client.put(url, json={**base, "course_ids": [first["id"]]})
+    assert one.status_code == 200
+    assert [course["id"] for course in one.json()["courses"]] == [first["id"]]
+    two = client.put(url, json={**base, "course_ids": [first["id"], second["id"]]})
+    assert two.status_code == 200
+    assert {course["id"] for course in two.json()["courses"]} == {first["id"], second["id"]}
+
+    unchanged = client.put(url, json={**base, "title": f"已编辑 {uuid4().hex}"})
+    assert unchanged.status_code == 200
+    assert {course["id"] for course in unchanged.json()["courses"]} == {
+        first["id"], second["id"]}
+    for invalid in ([first["id"], str(uuid4())], [first["id"], first["id"]], ["bad-id"]):
+        rejected = client.put(url, json={**base, "course_ids": invalid})
+        assert rejected.status_code == 422
+        assert len(client.get(url).json()["courses"]) == 2
+
+    stopped = client.put(f"/api/v1/courses/{first['id']}", json={
+        "name": first["name"], "status": "停用",
+    })
+    assert stopped.status_code == 200
+    assert any(course["status"] == "停用" for course in client.get(url).json()["courses"])
+    cleared = client.put(url, json={**base, "course_ids": []})
+    assert cleared.status_code == 200
+    assert cleared.json()["courses"] == []
 
 
 @pytest.fixture

@@ -1,14 +1,30 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, Index, String, Text, func
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Table,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 MATERIAL_TYPES = ("故事", "案例", "Demo", "金句", "段子", "行业素材")
 MATERIAL_STATUSES = ("草稿", "可用", "主力", "待更新", "退役")
+
+material_courses = Table(
+    "material_courses", Base.metadata,
+    Column("material_id", PGUUID(as_uuid=True), ForeignKey("materials.id"), primary_key=True),
+    Column("course_id", PGUUID(as_uuid=True), ForeignKey("courses.id"), primary_key=True),
+)
 
 
 class Material(Base):
@@ -38,3 +54,7 @@ class Material(Base):
                                                    server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False,
                                                    server_default=func.now(), onupdate=func.now())
+    courses: Mapped[list["Course"]] = relationship(secondary=material_courses, lazy="selectin")
+
+
+from app.models.course import Course  # noqa: E402
