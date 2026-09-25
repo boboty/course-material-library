@@ -390,6 +390,78 @@ def test_invalid_type_filter_is_rejected(client: TestClient) -> None:
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_audience_industry_tag_filters_and_tag_search_combine_with_pagination(
+    client: TestClient,
+) -> None:
+    marker = uuid4().hex
+    audience = client.post("/api/v1/audience-types", json={"name": f"虚构人群 {marker}"}).json()
+    industry = client.post("/api/v1/industries", json={"name": f"虚构行业 {marker}"}).json()
+    course = create_course(client)
+    ids: list[str] = []
+    for index in range(3):
+        title = f"虚构新筛选 {marker} {index}"
+        created = client.post("/api/v1/materials", json={
+            "title": title, "type": "Demo", "body": "虚构正文",
+        })
+        assert created.status_code == 201
+        material_id = created.json()["id"]
+        ids.append(material_id)
+        updated = client.put(f"/api/v1/materials/{material_id}", json={
+            "title": title, "type": "Demo", "body": "虚构正文", "status": "可用",
+            "audience_type_ids": [audience["id"]], "industry_ids": [industry["id"]],
+            "course_ids": [course["id"]], "tags": [f"筛选标签 {marker}", "共同标签"],
+        })
+        assert updated.status_code == 200
+
+    extra = client.post("/api/v1/materials", json={
+        "title": f"虚构标签外 {marker}", "type": "Demo", "body": "虚构正文",
+    }).json()
+    assert client.put(f"/api/v1/materials/{extra['id']}", json={
+        "title": extra["title"], "type": "Demo", "body": "虚构正文", "status": "可用",
+        "tags": ["其他标签"],
+    }).status_code == 200
+
+    tags = client.get("/api/v1/materials/tags")
+    assert tags.status_code == 200
+    assert f"筛选标签 {marker}" in tags.json()
+    assert "其他标签" in tags.json()
+    assert len(tags.json()) == len(set(tags.json()))
+
+    for key, value in (
+        ("audience_type_id", audience["id"]), ("industry_id", industry["id"]),
+        ("tag", f"筛选标签 {marker}"),
+    ):
+        single_filter = client.get("/api/v1/materials", params={key: value})
+        assert single_filter.status_code == 200
+        assert single_filter.json()["total"] == 3
+        assert len(single_filter.json()["items"]) == 3
+
+    # 关键词能不区分大小写地命中标签，完整筛选共同限制 total 和页内容。
+    params = {
+        "q": f"筛选标签 {marker}".upper(), "type": "Demo", "course_id": course["id"],
+        "audience_type_id": audience["id"], "industry_id": industry["id"],
+        "status": "可用", "tag": f"筛选标签 {marker}", "page_size": 1,
+    }
+    first = client.get("/api/v1/materials", params=params)
+    second = client.get("/api/v1/materials", params={**params, "page": 2})
+    outside = client.get("/api/v1/materials", params={**params, "tag": "其他标签"})
+    assert first.status_code == second.status_code == outside.status_code == 200
+    assert first.json()["total"] == second.json()["total"] == 3
+    assert len(first.json()["items"]) == len(second.json()["items"]) == 1
+    assert first.json()["items"][0]["id"] != second.json()["items"][0]["id"]
+    assert {first.json()["items"][0]["id"], second.json()["items"][0]["id"]} <= set(ids)
+    assert outside.json()["total"] == 0
+
+
+def test_material_vocabulary_filter_ids_are_validated(client: TestClient) -> None:
+    for key in ("audience_type_id", "industry_id"):
+        malformed = client.get("/api/v1/materials", params={key: "bad-id"})
+        missing = client.get("/api/v1/materials", params={key: str(uuid4())})
+        assert malformed.status_code == 422
+        assert malformed.json()["error"]["code"] == "VALIDATION_ERROR"
+        assert missing.status_code == 404
+
+
 def test_supplemental_fields_can_be_saved_updated_and_cleared(
     client: TestClient, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

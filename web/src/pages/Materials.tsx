@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterialTags, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 import { listAllCourses, type Course } from '../api/courses'
 import { listAllAudienceTypes, listAllIndustries, type Vocabulary } from '../api/vocabularies'
@@ -15,51 +15,87 @@ export function MaterialList() {
   const status = params.get('status') || ''
   const type = params.get('type') || ''
   const courseId = params.get('course_id') || ''
+  const audienceTypeId = params.get('audience_type_id') || ''
+  const industryId = params.get('industry_id') || ''
+  const tag = params.get('tag') || ''
   const page = Math.max(1, Number(params.get('page') || '1') || 1)
   const [input, setInput] = useState(q)
   const [result, setResult] = useState<MaterialPage | null>(null)
   const [error, setError] = useState('')
   const [courses, setCourses] = useState<Course[]>([])
-  const [courseError, setCourseError] = useState('')
+  const [audienceTypes, setAudienceTypes] = useState<Vocabulary[]>([])
+  const [industries, setIndustries] = useState<Vocabulary[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [filterError, setFilterError] = useState('')
   useEffect(() => {
     let active = true
-    listAllCourses().then(items => { if (active) setCourses(items) })
-      .catch(() => { if (active) setCourseError('课程筛选项加载失败') })
+    Promise.all([listAllCourses(), listAllAudienceTypes(), listAllIndustries(), listMaterialTags()])
+      .then(([allCourses, allAudienceTypes, allIndustries, allTags]) => {
+        if (active) {
+          setCourses(allCourses); setAudienceTypes(allAudienceTypes)
+          setIndustries(allIndustries); setTags(allTags)
+        }
+      })
+      .catch(() => { if (active) setFilterError('筛选项加载失败，请刷新页面重试') })
     return () => { active = false }
   }, [])
   useEffect(() => {
     let active = true
     setResult(null)
     setError('')
-    listMaterials(q, page, status, type, undefined, courseId).then(data => { if (active) { setResult(data); setError('') } })
+    listMaterials(q, page, status, type, undefined, courseId,
+      audienceTypeId, industryId, tag).then(data => { if (active) { setResult(data); setError('') } })
       .catch(() => { if (active) setError('素材列表加载失败') })
     return () => { active = false }
-  }, [q, page, status, type, courseId])
+  }, [q, page, status, type, courseId, audienceTypeId, industryId, tag])
+  const firstPageParams = (overrides: Record<string, string>) => setParams({
+    q, course_id: courseId, audience_type_id: audienceTypeId, industry_id: industryId,
+    tag, type, status, page: '1', ...overrides,
+  })
+  const currentParams = (nextPage: string) => ({
+    q, course_id: courseId, audience_type_id: audienceTypeId, industry_id: industryId,
+    tag, type, status, page: nextPage,
+  })
   return <main className="material-page by-container">
     <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>素材列表</h1><p className="by-lead">随手记录，随时找回。</p></div><div className="detail-actions"><Link className="secondary-link" to="/materials/import">批量导入</Link><Link className="primary-link" to="/materials/new">快速录入</Link></div></header>
-    <form className="search-row" onSubmit={event => { event.preventDefault(); setParams({ q: input.trim(), course_id: courseId, type, status, page: '1' }) }}>
-      <label htmlFor="material-search">搜索标题或正文</label><input id="material-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
+    <form className="search-row" onSubmit={event => { event.preventDefault(); firstPageParams({ q: input.trim() }) }}>
+      <label htmlFor="material-search">搜索标题、正文或标签</label><input id="material-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
     </form>
     <label className="material-status-filter" htmlFor="material-course">课程
-      <select id="material-course" value={courseId} onChange={event => setParams({ q, course_id: event.target.value, type, status, page: '1' })}>
+      <select id="material-course" value={courseId} onChange={event => firstPageParams({ course_id: event.target.value })}>
         <option value="">全部课程</option>{courses.map(course => <option key={course.id} value={course.id}>{course.name}{course.status === '停用' ? '（停用）' : ''}</option>)}
       </select>
     </label>
     <label className="material-status-filter" htmlFor="material-type">类型
-      <select id="material-type" value={type} onChange={event => setParams({ q, course_id: courseId, type: event.target.value, status, page: '1' })}>
+      <select id="material-type" value={type} onChange={event => firstPageParams({ type: event.target.value })}>
         <option value="">全部类型</option>{materialTypes.map(item => <option key={item} value={item}>{item}</option>)}
       </select>
     </label>
+    <label className="material-status-filter" htmlFor="material-audience">人群
+      <select id="material-audience" value={audienceTypeId} onChange={event => firstPageParams({ audience_type_id: event.target.value })}>
+        <option value="">全部人群</option>{audienceTypes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select>
+    </label>
+    <label className="material-status-filter" htmlFor="material-industry">行业
+      <select id="material-industry" value={industryId} onChange={event => firstPageParams({ industry_id: event.target.value })}>
+        <option value="">全部行业</option>{industries.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+      </select>
+    </label>
+    <label className="material-status-filter" htmlFor="material-tag">标签
+      <select id="material-tag" value={tag} onChange={event => firstPageParams({ tag: event.target.value })}>
+        <option value="">全部标签</option>{tags.map(item => <option key={item} value={item}>{item}</option>)}
+      </select>
+    </label>
     <label className="material-status-filter" htmlFor="material-status">状态
-      <select id="material-status" value={status} onChange={event => setParams({ q, course_id: courseId, type, status: event.target.value, page: '1' })}>
+      <select id="material-status" value={status} onChange={event => firstPageParams({ status: event.target.value })}>
         <option value="">全部状态</option>{materialStatuses.map(item => <option key={item} value={item}>{item}</option>)}
       </select>
     </label>
-    {courseError && <Callout tone="risk">{courseError}</Callout>}{error && <Callout tone="risk">{error}</Callout>}
+    {filterError && <Callout tone="risk">{filterError}</Callout>}{error && <Callout tone="risk">{error}</Callout>}
     {!result && !error && <p className="result-count">素材加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 条素材</p><div className="material-grid">
       {result.items.map(material => <Link key={material.id} to={`/materials/${material.id}`} className="material-link"><Card interactive accent><div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p>{material.type || '未填写类型'}</p>{material.body?.trim() ? <p className="material-excerpt">{material.body.trim()}</p> : <p className="material-excerpt material-excerpt--empty">尚未填写正文</p>}</Card></Link>)}
-    </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams({ q, course_id: courseId, type, status, page: String(page - 1) })}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams({ q, course_id: courseId, type, status, page: String(page + 1) })}>下一页</Button></nav></>}
+    </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams(currentParams(String(page - 1)))}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams(currentParams(String(page + 1)))}>下一页</Button></nav></>}
   </main>
 }
 

@@ -9,7 +9,7 @@ test('quick create, search, open detail and survive refresh', async ({ page }) =
   await page.getByRole('button', { name: '保存草稿' }).click()
   await expect(page.getByRole('heading', { name: title })).toBeVisible()
   await page.goto('/materials')
-  await page.getByLabel('搜索标题或正文').fill(title)
+  await page.getByLabel('搜索标题、正文或标签').fill(title)
   await page.getByRole('button', { name: '搜索' }).click()
   await expect(page.getByText('共 1 条素材')).toBeVisible()
   await page.getByRole('link', { name: new RegExp(title) }).click()
@@ -36,7 +36,7 @@ test('same title warns but still allows saving another material', async ({ page 
   await expect(page.getByText('第二条虚构正文。')).toBeVisible()
 
   await page.goto('/materials')
-  await page.getByLabel('搜索标题或正文').fill(title)
+  await page.getByLabel('搜索标题、正文或标签').fill(title)
   await page.getByRole('button', { name: '搜索' }).click()
   await expect(page.getByText('共 2 条素材')).toBeVisible()
 })
@@ -281,7 +281,7 @@ for (const width of [1280, 375]) {
     await expect(page.getByLabel('状态')).toHaveValue('可用')
     await expect(page.getByText('共 1 条素材')).toBeVisible()
 
-    await page.getByLabel('搜索标题或正文').fill(marker)
+    await page.getByLabel('搜索标题、正文或标签').fill(marker)
     await page.getByRole('button', { name: '搜索' }).click()
     await expect(page).toHaveURL(/q=.*type=&status=%E5%8F%AF%E7%94%A8&page=1/)
     await expect(page.getByRole('heading', { name: new RegExp(`虚构类型筛选 ${marker} 1`) })).toBeVisible()
@@ -306,6 +306,80 @@ for (const width of [1280, 375]) {
     await expect(page.getByText('共 21 条素材')).toBeVisible()
     await expect(page.getByText('第 2 页')).toBeVisible()
     await expect.poll(noOverflow).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
+  test(`material audience, industry and tag filters combine with search and pagination at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const marker = crypto.randomUUID()
+
+    async function ensureSecondPageChoice(path: string, label: string) {
+      let result = await (await page.request.get(`${path}?page=1&page_size=100`)).json() as {
+        items: Array<{ id: string; name: string }>; total: number
+      }
+      while (result.total <= 100) {
+        const batch = Math.min(100 - result.total + 1, 25)
+        const created = await Promise.all(Array.from({ length: batch }, async () => {
+          const response = await page.request.post(path, {
+            data: { name: `虚构${label}列表候选 ${crypto.randomUUID()}` },
+          })
+          expect(response.ok()).toBe(true)
+          return response.json() as Promise<{ id: string; name: string }>
+        }))
+        result = { ...result, total: result.total + created.length }
+      }
+      const secondPage = await (await page.request.get(`${path}?page=2&page_size=100`)).json() as {
+        items: Array<{ id: string; name: string }>
+      }
+      return secondPage.items[0]
+    }
+
+    const audience = await ensureSecondPageChoice('/api/v1/audience-types', '人群')
+    const industry = await ensureSecondPageChoice('/api/v1/industries', '行业')
+    const course = await page.request.post('/api/v1/courses', {
+      data: { name: `虚构筛选课程 ${marker}` },
+    }).then(response => response.json()) as { id: string }
+
+    for (let index = 0; index < 21; index += 1) {
+      const title = `虚构组合筛选 ${marker} ${index}`
+      const created = await page.request.post('/api/v1/materials', {
+        data: { title, type: 'Demo', body: '虚构组合筛选正文' },
+      })
+      expect(created.ok()).toBe(true)
+      const material = await created.json() as { id: string }
+      const updated = await page.request.put(`/api/v1/materials/${material.id}`, {
+        data: {
+          title, type: 'Demo', body: '虚构组合筛选正文', status: '可用',
+          audience_type_ids: [audience.id], industry_ids: [industry.id],
+          course_ids: [course.id], tags: [marker, '组合筛选标签'],
+        },
+      })
+      expect(updated.ok()).toBe(true)
+    }
+
+    await page.goto(`/materials?q=${encodeURIComponent(marker)}&page=2`)
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await page.getByLabel('人群').selectOption(audience.id)
+    await expect(page).toHaveURL(/audience_type_id=.*page=1/)
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await page.locator('#material-industry').selectOption(industry.id)
+    await page.locator('#material-tag').selectOption('组合筛选标签')
+    await page.getByLabel('课程').selectOption(course.id)
+    await page.getByLabel('类型').selectOption('Demo')
+    await page.getByLabel('状态').selectOption('可用')
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await page.getByRole('button', { name: '下一页' }).click()
+    await expect(page).toHaveURL(new RegExp(`q=${marker}.*course_id=${course.id}.*audience_type_id=${audience.id}.*industry_id=${industry.id}.*tag=.*type=Demo&status=%E5%8F%AF%E7%94%A8&page=2`))
+    await expect(page.getByText('第 2 页')).toBeVisible()
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+
+    await page.locator('#material-tag').selectOption('')
+    await page.getByLabel('搜索标题、正文或标签').fill('unmatched-filter-query')
+    await page.getByRole('button', { name: '搜索' }).click()
+    await expect(page.getByText('共 0 条素材')).toBeVisible()
+    await expect(page.getByText('没有找到素材。')).toBeVisible()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   })
 }
 
@@ -377,7 +451,7 @@ for (const width of [1280, 375]) {
     await expect(page.getByText('共 0 条素材')).toBeVisible()
     await page.getByLabel('状态').selectOption('')
     await expect(page.getByRole('heading', { name: title })).toBeVisible()
-    await page.getByLabel('搜索标题或正文').fill(`${marker} missing`)
+    await page.getByLabel('搜索标题、正文或标签').fill(`${marker} missing`)
     await page.getByRole('button', { name: '搜索' }).click()
     await expect(page.getByText('共 0 条素材')).toBeVisible()
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

@@ -24,15 +24,25 @@ export const materialStatuses = ['草稿', '可用', '主力', '待更新', '退
 export const materialTypes = ['故事', '案例', 'Demo', '金句', '段子', '行业素材'] as const
 
 export async function listMaterials(q = '', page = 1, status = '', type = '', pageSize?: number,
-                                   courseId = ''): Promise<MaterialPage> {
+                                   courseId = '', audienceTypeId = '', industryId = '',
+                                   tag = ''): Promise<MaterialPage> {
   const params = new URLSearchParams({ q, page: String(page) })
   if (pageSize) params.set('page_size', String(pageSize))
   if (status) params.set('status', status)
   if (type) params.set('type', type)
   if (courseId) params.set('course_id', courseId)
+  if (audienceTypeId) params.set('audience_type_id', audienceTypeId)
+  if (industryId) params.set('industry_id', industryId)
+  if (tag) params.set('tag', tag)
   const response = await fetch(`/api/v1/materials?${params}`)
   if (!response.ok) throw new Error('素材列表加载失败')
   return response.json() as Promise<MaterialPage>
+}
+
+export async function listMaterialTags(): Promise<string[]> {
+  const response = await fetch('/api/v1/materials/tags')
+  if (!response.ok) throw new Error('标签筛选项加载失败')
+  return response.json() as Promise<string[]>
 }
 
 export async function listAllMaterials(q = ''): Promise<Material[]> {

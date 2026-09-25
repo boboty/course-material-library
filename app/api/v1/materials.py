@@ -114,12 +114,20 @@ async def list_materials(session: DbSession,
                          ] = None,
                          status: Annotated[MaterialStatusFilter | None, Query()] = None,
                          course_id: Annotated[UUID | None, Query()] = None,
+                         audience_type_id: Annotated[UUID | None, Query()] = None,
+                         industry_id: Annotated[UUID | None, Query()] = None,
+                         tag: Annotated[str | None, Query(max_length=255)] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
     where = []
     if q and q.strip():
         search = f"%{q.strip()}%"
-        where.append(or_(Material.title.ilike(search), Material.body.ilike(search)))
+        matching_tags = func.unnest(Material.tags).column_valued("material_tag")
+        tag_matches = select(1).where(matching_tags.ilike(search)).correlate(Material).exists()
+        where.append(or_(
+            Material.title.ilike(search), Material.body.ilike(search),
+            tag_matches,
+        ))
     if title is not None:
         where.append(Material.title == title)
     if material_type is not None:
@@ -131,12 +139,36 @@ async def list_materials(session: DbSession,
         if course_exists is None:
             raise HTTPException(status_code=404, detail="课程不存在")
         where.append(Material.courses.any(Course.id == course_id))
+    if audience_type_id is not None:
+        audience_exists = await session.scalar(
+            select(AudienceType.id).where(AudienceType.id == audience_type_id)
+        )
+        if audience_exists is None:
+            raise HTTPException(status_code=404, detail="人群类型不存在")
+        where.append(Material.audience_types.any(AudienceType.id == audience_type_id))
+    if industry_id is not None:
+        industry_exists = await session.scalar(
+            select(Industry.id).where(Industry.id == industry_id)
+        )
+        if industry_exists is None:
+            raise HTTPException(status_code=404, detail="行业不存在")
+        where.append(Material.industries.any(Industry.id == industry_id))
+    if tag is not None:
+        where.append(Material.tags.contains([tag]))
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))
     rows = await session.scalars(select(Material).where(*where)
                                  .order_by(Material.created_at.desc(), Material.id.desc())
                                  .offset((page - 1) * page_size).limit(page_size))
     return MaterialPage(items=[MaterialRead.model_validate(row) for row in rows],
                         page=page, page_size=page_size, total=total or 0)
+
+
+@router.get("/tags", response_model=list[str])
+async def list_material_tags(session: DbSession) -> list[str]:
+    tags = await session.scalars(
+        select(func.unnest(Material.tags)).distinct().order_by(func.unnest(Material.tags))
+    )
+    return list(tags.all())
 
 
 @router.get("/{material_id}", response_model=MaterialRead)
