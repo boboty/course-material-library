@@ -63,6 +63,16 @@ class MaterialUpdate(BaseModel):
         return value
 
 
+class MaterialMarkdownImport(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    markdown: str
+
+
+class MaterialMarkdownImportResult(BaseModel):
+    count: int
+
+
 class MaterialRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

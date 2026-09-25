@@ -18,6 +18,7 @@
 - Task 11: PASS
 - Task 12: PASS
 - Task 13: PASS
+- Task 14: PASS
 
 ## 已验收基线
 
@@ -37,6 +38,8 @@
 - Task 11 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 `0003_usages`；`make check` 通过（ruff、pyright 0 errors、后端 138 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 22 passed（含 1280px / 375px 同标题提示与保存），`git diff --check` 通过；审查确认前端查询前 trim 与既有保存时 strip 一致，后端 `title` 为区分大小写的精确相等查询，允许同标题并存；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；重复查询失败时静默不显示提示，保存仍可继续。
 - Task 13 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 13 material type filter and body search`
 - Task 13 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 156 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 28 passed（含 1280px / 375px 类型 / 状态 / 正文关键词组合与超一页翻页保留条件），`git diff --check` 通过；审查确认 `type` 为 Literal 六值（空值、多值、未知值 422），`q` 为标题或正文 `ilike`，条件共同作用于 total 与分页，前端筛选变更回第一页且翻页保留全部条件；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；`q` 中 `%` / `_` 作为 LIKE 通配符的既有行为未处理（沿用原标题搜索）；smoke 脚本不覆盖列表筛选（由后端测试与 E2E 覆盖）。
+- Task 14 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 14 markdown bulk import`
+- Task 14 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 159 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 30 passed（含 1280px / 375px 导入与错误流程），`git diff --check` 通过；审查确认后端 `POST /api/v1/materials/import` 独立复验格式（空输入、缺标题、缺正文、前置文字、非 `## ` 标题均 422 `MARKDOWN_IMPORT_INVALID` 且零写入），`add_all` + 单次 commit，失败 rollback；触发器注入失败测试确认整批回滚；导入结果 `type=null`、草稿、允许同标题；前端解析规则与后端一致，错误时禁用导入；额外探测 CRLF 正常导入；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；标题超过 255 字符或正文含 NUL 字符时不做预校验，返回 500 `MATERIAL_IMPORT_FAILED`（整批回滚、零写入，提示较笼统）；围栏代码块内的 `## ` 会被当作标题、正文中以 `#` 开头的行（如 `#标签`）按格式错误拒绝，属固定严格格式的既有取舍；smoke 脚本不覆盖导入（由后端测试与 E2E 覆盖）。
 - Migration head: 0003_usages（单一 head）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
@@ -95,16 +98,30 @@
 - Task 12：素材详情“编辑素材”入口；编辑页预填标题 / 类型 / 正文 / 状态，`PUT /api/v1/materials/{id}` 保存后返回详情并显示最新内容
 - Task 11：快速录入按后端精确标题查询显示同标题提示，提示下仍可保存新素材；提示在标题改为不同值后消失
 - Task 13：素材列表新增单选类型筛选，关键词扩展为标题或正文匹配；类型、状态与关键词条件保留在 URL 并组合分页
+- Task 14：Markdown 批量导入页面及入口；严格格式校验、错误零写入、整批事务提交 / 失败回滚；成功结果显示导入数量与返回入口
 
 ## 当前尚未具备
 
 - 素材扩展字段（标签、适用人群 / 行业、支撑判断、讲法要点、来源备注等）的编辑，状态以外的筛选、素材家族
 - 同客户 / 同集团重复提醒、连续差评及系统复核提示
-- 素材与课程多对多关系、Markdown 批量导入
+- 素材与课程多对多关系
 - 课后登记完成状态字段（V1 不建设）
 - 后端分页聚合 / 游标接口、可搜索的大候选集下拉（本 Task 明确不做）
 
 ## 当前任务
+
+- Task 14：Markdown 批量导入 —— PASS（Independent Verifier 独立验收；证据见上方“Task 14 独立验收时”）。
+  - 施工前基线：Task 13 accepted baseline `fe68da975a0fa57b5ad849f5131d7d37aea6af9c`；Migration head `0003_usages`，本轮无 schema / migration 变更。
+  - 实现：素材列表增加批量导入入口与 `/materials/import` 页面；页面解析固定 `## 标题` 格式、显示有效条目数，明确提示空输入、缺标题、缺正文、前置正文及非二级标题格式错误，并禁用无效导入；后端复验格式并在一个数据库事务中创建全部草稿素材（`type=null`、同标题允许），失败时回滚全部写入；成功后显示数量并提供返回素材列表入口。
+  - 验证覆盖：单条 / 多条导入、中文 / 英文、首尾空白裁剪、缺标题、缺正文、空输入、错误标题格式、错误时零写入、数据库中途失败时全量回滚、同标题、草稿与空类型，以及 1280px / 375px 页面流程。
+  - Developer 自验：临时本机 PostgreSQL 17（`/private/tmp/cml-task14-pg.SoYL0E`，测试库 `benyan_test` / `benyan_e2e`）迁移至 head；`make check` 通过（ruff、pyright 0 errors、后端 159 passed、E2E DB 门禁、前端 14 passed、build）；`make smoke` 通过（health / not-found）；`make e2e` 30 passed（含本 Task 在 1280px / 375px 的导入与错误流程）；`git diff --check` 通过。
+  - 数据边界：验证只使用虚构文本、随机标记及临时测试数据库；未发现真实业务数据或 Secret；数据库中途失败测试使用临时触发器并在 finally 清理；本轮没有修改 `TASK_BOARD.md`，该文件施工前已有用户改动。
+  - 冻结判断：只接受行首精确 `## ` 作为素材标题；标题之后至下一标题的正文保留内部空白并裁剪首尾；输入中的任一坏块导致整批拒绝，不部分导入；所有导入结果均为草稿且 `type=null`。
+  - 未实现范围：文件上传、AI 拆分、类型推断、YAML / front matter、标签等扩展字段、去重与导入历史均按 Task 明确不做。
+  - 风险 / 限制：尚未在 Docker Compose 环境复测；AI self-check 不等于独立验收。
+  - 下一步：等待下一个 Task；push / merge 须人工授权。
+
+## 上一已验收任务摘要
 
 - Task 13：素材类型筛选与正文关键词搜索 —— PASS（Independent Verifier 独立验收）。
   - 后端：`GET /api/v1/materials` 增加单值 `type` 查询参数，限定现有六种类型；`q` 在标题或正文执行不区分大小写子串匹配。类型、状态、关键词同时用于 total 与分页；`body IS NULL` 可正常查询；非法类型沿用 422 `VALIDATION_ERROR`。
@@ -117,4 +134,4 @@
 
 ## 下一步
 
-- 由用户 / Orchestrator 确定下一个 Task；push 须人工授权。
+- 启动下一个 Task（先创建 Task 文件并更新 PROGRESS.md）；push / merge 须人工授权。

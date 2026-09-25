@@ -144,6 +144,54 @@ for (const width of [1280, 375]) {
 }
 
 for (const width of [1280, 375]) {
+  test(`Markdown batch import validates format and saves all drafts at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const marker = crypto.randomUUID()
+    const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
+    await page.goto('/materials')
+    await page.getByRole('link', { name: '批量导入' }).click()
+    await expect(page.getByRole('heading', { name: '导入 Markdown 素材' })).toBeVisible()
+    const markdown = page.getByLabel('Markdown 内容')
+    const submit = page.getByRole('button', { name: '确认导入' })
+
+    await expect(page.getByRole('alert')).toContainText('请粘贴 Markdown 内容')
+    await expect(submit).toBeDisabled()
+    await markdown.fill(`## 虚构标题 ${marker}\n\n中文正文。\n\n## English ${marker}\n\n  English body.  `)
+    await expect(page.getByRole('status')).toHaveText('待导入 2 条素材')
+    await expect(submit).toBeEnabled()
+    await expect.poll(noOverflow).toBe(true)
+
+    await markdown.fill(`## 虚构标题 ${marker}\n\n第一条正文\n\n##  \n\n第二条正文`)
+    await expect(page.getByRole('alert')).toContainText('缺少素材标题')
+    await expect(submit).toBeDisabled()
+    expect((await (await page.request.get(`/api/v1/materials?${new URLSearchParams({ q: marker })}`)).json()).total).toBe(0)
+
+    await markdown.fill(`## 虚构标题 ${marker}\n\n   `)
+    await expect(page.getByRole('alert')).toContainText('正文不能为空')
+    await expect(submit).toBeDisabled()
+    await markdown.fill(`## 虚构标题 ${marker}\n\n正文\n### 非法标题`)
+    await expect(page.getByRole('alert')).toContainText('格式错误')
+    await expect(submit).toBeDisabled()
+
+    await markdown.fill(`\n##  虚构标题 ${marker}  \n\n  中文正文。  \n\n## English ${marker}\n\n  English body.  `)
+    await expect(page.getByRole('status')).toHaveText('待导入 2 条素材')
+    await submit.click()
+    await expect(page.getByRole('heading', { name: '导入完成' })).toBeVisible()
+    await expect(page.getByRole('status')).toHaveText('成功导入 2 条草稿素材。')
+    const result = await page.request.get(`/api/v1/materials?${new URLSearchParams({ q: marker, page_size: '10' })}`)
+    const { items, total } = await result.json()
+    expect(total).toBe(2)
+    expect(items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ title: `虚构标题 ${marker}`, body: '中文正文。', type: null, status: '草稿' }),
+      expect.objectContaining({ title: `English ${marker}`, body: 'English body.', type: null, status: '草稿' }),
+    ]))
+    await page.getByRole('link', { name: '返回素材列表' }).click()
+    await expect(page).toHaveURL('/materials')
+    await expect.poll(noOverflow).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material status filter combines with search and resets page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const marker = crypto.randomUUID()

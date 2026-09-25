@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
 
 from app.db.session import get_session
 from app.main import app
@@ -184,6 +185,103 @@ def test_invalid_type_filter_is_rejected(client: TestClient) -> None:
         response = client.get("/api/v1/materials", params={"type": material_type})
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_markdown_import_creates_trimmed_drafts_atomically_and_allows_duplicate_titles(
+    client: TestClient,
+) -> None:
+    title = f"虚构导入标题 {uuid4().hex}"
+    markdown = (
+        f"\n##  {title}  \n\n  中文正文第一行  \n第二行。  "
+        "\n\n## English title\n\nEnglish body.\n"
+    )
+    response = client.post("/api/v1/materials/import", json={"markdown": markdown})
+    assert response.status_code == 201
+    assert response.json() == {"count": 2}
+
+    listed = client.get("/api/v1/materials", params={"q": title})
+    assert listed.status_code == 200
+    imported = listed.json()["items"]
+    assert len(imported) == 1
+    assert imported[0]["title"] == title
+    assert imported[0]["body"] == "中文正文第一行  \n第二行。"
+    assert imported[0]["type"] is None
+    assert imported[0]["status"] == "草稿"
+
+    duplicate = client.post("/api/v1/materials/import", json={
+        "markdown": f"## {title}\n\n另一条虚构正文",
+    })
+    assert duplicate.status_code == 201
+    assert duplicate.json() == {"count": 1}
+    exact = client.get("/api/v1/materials", params={"title": title})
+    assert exact.json()["total"] == 2
+
+
+def test_invalid_markdown_import_returns_explicit_error_without_partial_writes(
+    client: TestClient,
+) -> None:
+    marker = uuid4().hex
+    malformed = [
+        ("", "请粘贴 Markdown 内容"),
+        (f"## 虚构标题 {marker}\n\n正文\n##   \n\n另一段正文", "缺少素材标题"),
+        (f"## 虚构标题 {marker}\n\n## 第二标题\n\n正文", "正文不能为空"),
+        (f"## 虚构标题 {marker}\n\n正文\n### 非法标题\n\n更多内容", "格式错误"),
+        (f"前置文字 {marker}\n\n## 标题\n\n正文", "第一个"),
+        (f"## 虚构标题 {marker}\n\n   ", "正文不能为空"),
+    ]
+    for markdown, message in malformed:
+        response = client.post("/api/v1/materials/import", json={"markdown": markdown})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "MARKDOWN_IMPORT_INVALID"
+        assert message in response.json()["error"]["message"]
+        assert client.get("/api/v1/materials", params={"q": marker}).json()["total"] == 0
+
+
+def test_markdown_import_database_failure_rolls_back_all_items(client: TestClient) -> None:
+    import asyncio
+
+    suffix = uuid4().hex
+    function_name = f"test_import_failure_{suffix}"
+    trigger_name = f"test_import_failure_trigger_{suffix}"
+    failing_title = f"FORCE_IMPORT_FAILURE_{suffix}"
+
+    async def install_failure_trigger() -> None:
+        engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(
+                    f"CREATE FUNCTION {function_name}() RETURNS trigger LANGUAGE plpgsql "
+                    f"AS $$ BEGIN IF NEW.title = '{failing_title}' THEN "
+                    "RAISE EXCEPTION 'forced import failure'; END IF; RETURN NEW; END $$"
+                ))
+                await conn.execute(text(
+                    f"CREATE TRIGGER {trigger_name} BEFORE INSERT ON materials "
+                    f"FOR EACH ROW EXECUTE FUNCTION {function_name}()"
+                ))
+        finally:
+            await engine.dispose()
+
+    async def remove_failure_trigger() -> None:
+        engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+        try:
+            async with engine.begin() as conn:
+                await conn.execute(text(f"DROP TRIGGER IF EXISTS {trigger_name} ON materials"))
+                await conn.execute(text(f"DROP FUNCTION IF EXISTS {function_name}()"))
+        finally:
+            await engine.dispose()
+
+    asyncio.run(install_failure_trigger())
+    try:
+        markdown = (
+            f"## 先写入的虚构标题 {suffix}\n\n第一段正文\n\n"
+            f"## {failing_title}\n\n触发失败的虚构正文"
+        )
+        response = client.post("/api/v1/materials/import", json={"markdown": markdown})
+        assert response.status_code == 500
+        assert response.json()["error"]["code"] == "MATERIAL_IMPORT_FAILED"
+        assert client.get("/api/v1/materials", params={"q": suffix}).json()["total"] == 0
+    finally:
+        asyncio.run(remove_failure_trigger())
 
 
 def test_exact_title_finds_match_beyond_fuzzy_first_page(client: TestClient) -> None:

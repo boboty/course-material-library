@@ -8,7 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import ApplicationError
 from app.db.session import get_session
 from app.models.material import Material
-from app.schemas.material import MaterialCreate, MaterialPage, MaterialRead, MaterialUpdate
+from app.schemas.material import (
+    MaterialCreate,
+    MaterialMarkdownImport,
+    MaterialMarkdownImportResult,
+    MaterialPage,
+    MaterialRead,
+    MaterialUpdate,
+)
 
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 
@@ -18,6 +25,57 @@ MaterialStatusFilter = Literal["草稿", "可用", "主力", "待更新", "退�
 MaterialTypeFilter = Literal["故事", "案例", "Demo", "金句", "段子", "行业素材"]
 
 
+def parse_markdown_import(markdown: str) -> list[tuple[str, str]]:
+    if not markdown.strip():
+        raise ApplicationError("MARKDOWN_IMPORT_INVALID", "请粘贴 Markdown 内容", 422)
+
+    materials: list[tuple[str, str]] = []
+    title: str | None = None
+    body_lines: list[str] = []
+    for line_number, line in enumerate(markdown.splitlines(), start=1):
+        if line.startswith("## "):
+            if title is not None:
+                body = "\n".join(body_lines).strip()
+                if not body:
+                    raise ApplicationError(
+                        "MARKDOWN_IMPORT_INVALID",
+                        f"素材「{title}」的正文不能为空",
+                        422,
+                    )
+                materials.append((title, body))
+            title = line[3:].strip()
+            if not title:
+                raise ApplicationError(
+                    "MARKDOWN_IMPORT_INVALID", f"第 {line_number} 行缺少素材标题", 422
+                )
+            body_lines = []
+        elif line.lstrip().startswith("#"):
+            raise ApplicationError(
+                "MARKDOWN_IMPORT_INVALID",
+                f"第 {line_number} 行格式错误：素材标题必须使用 `## 标题` 格式",
+                422,
+            )
+        elif title is None:
+            if line.strip():
+                raise ApplicationError(
+                    "MARKDOWN_IMPORT_INVALID",
+                    f"第 {line_number} 行位于第一个 `## 标题` 之前，请检查 Markdown 格式",
+                    422,
+                )
+        else:
+            body_lines.append(line)
+
+    if title is None:
+        raise ApplicationError(
+            "MARKDOWN_IMPORT_INVALID", "未找到 `## 标题`，请按约定格式整理内容", 422
+        )
+    body = "\n".join(body_lines).strip()
+    if not body:
+        raise ApplicationError("MARKDOWN_IMPORT_INVALID", "最后一条素材正文不能为空", 422)
+    materials.append((title, body))
+    return materials
+
+
 @router.post("", response_model=MaterialRead, status_code=201)
 async def create_material(payload: MaterialCreate, session: DbSession) -> Material:
     material = Material(title=payload.title, type=payload.type, body=payload.body, status="草稿")
@@ -25,6 +83,24 @@ async def create_material(payload: MaterialCreate, session: DbSession) -> Materi
     await session.commit()
     await session.refresh(material)
     return material
+
+
+@router.post("/import", response_model=MaterialMarkdownImportResult, status_code=201)
+async def import_materials(payload: MaterialMarkdownImport,
+                           session: DbSession) -> MaterialMarkdownImportResult:
+    parsed = parse_markdown_import(payload.markdown)
+    session.add_all([
+        Material(title=title, body=body, type=None, status="草稿")
+        for title, body in parsed
+    ])
+    try:
+        await session.commit()
+    except Exception as exc:
+        await session.rollback()
+        raise ApplicationError(
+            "MATERIAL_IMPORT_FAILED", "批量导入失败，未保存任何素材，请检查内容后重试", 500
+        ) from exc
+    return MaterialMarkdownImportResult(count=len(parsed))
 
 
 @router.get("", response_model=MaterialPage)

@@ -1,10 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, findExactTitle, getMaterial, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, importMaterials, listMaterials, materialStatuses, materialTypes, updateMaterial, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 
 export function MaterialList() {
@@ -25,7 +25,7 @@ export function MaterialList() {
     return () => { active = false }
   }, [q, page, status, type])
   return <main className="material-page by-container">
-    <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>素材列表</h1><p className="by-lead">随手记录，随时找回。</p></div><Link className="primary-link" to="/materials/new">快速录入</Link></header>
+    <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>素材列表</h1><p className="by-lead">随手记录，随时找回。</p></div><div className="detail-actions"><Link className="secondary-link" to="/materials/import">批量导入</Link><Link className="primary-link" to="/materials/new">快速录入</Link></div></header>
     <form className="search-row" onSubmit={event => { event.preventDefault(); setParams({ q: input.trim(), type, status, page: '1' }) }}>
       <label htmlFor="material-search">搜索标题或正文</label><input id="material-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
     </form>
@@ -44,6 +44,82 @@ export function MaterialList() {
     {result && <><p className="result-count">共 {result.total} 条素材</p><div className="material-grid">
       {result.items.map(material => <Link key={material.id} to={`/materials/${material.id}`} className="material-link"><Card interactive accent><div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p>{material.type || '未填写类型'}</p>{material.body?.trim() ? <p className="material-excerpt">{material.body.trim()}</p> : <p className="material-excerpt material-excerpt--empty">尚未填写正文</p>}</Card></Link>)}
     </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams({ q, type, status, page: String(page - 1) })}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams({ q, type, status, page: String(page + 1) })}>下一页</Button></nav></>}
+  </main>
+}
+
+type ImportParse = { items: Array<{ title: string; body: string }>; error: string }
+
+function parseMarkdownForImport(markdown: string): ImportParse {
+  if (!markdown.trim()) return { items: [], error: '请粘贴 Markdown 内容。' }
+  const items: Array<{ title: string; body: string }> = []
+  let title: string | null = null
+  let bodyLines: string[] = []
+  const saveCurrent = (): string => {
+    const body = bodyLines.join('\n').trim()
+    if (!body) return `素材「${title}」的正文不能为空。`
+    items.push({ title: title || '', body })
+    return ''
+  }
+  const lines = markdown.split(/\r?\n/)
+  for (const [index, line] of lines.entries()) {
+    const lineNumber = index + 1
+    if (line.startsWith('## ')) {
+      if (title !== null) {
+        const error = saveCurrent()
+        if (error) return { items: [], error }
+      }
+      title = line.slice(3).trim()
+      if (!title) return { items: [], error: `第 ${lineNumber} 行缺少素材标题。` }
+      bodyLines = []
+    } else if (line.trimStart().startsWith('#')) {
+      return { items: [], error: `第 ${lineNumber} 行格式错误：素材标题必须使用「## 标题」格式。` }
+    } else if (title === null) {
+      if (line.trim()) return { items: [], error: `第 ${lineNumber} 行位于第一个「## 标题」之前，请检查格式。` }
+    } else {
+      bodyLines.push(line)
+    }
+  }
+  if (title === null) return { items: [], error: '未找到「## 标题」，请按约定格式整理内容。' }
+  const error = saveCurrent()
+  return error ? { items: [], error } : { items, error: '' }
+}
+
+export function MaterialImport() {
+  const [markdown, setMarkdown] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [importedCount, setImportedCount] = useState<number | null>(null)
+  const parsed = useMemo(() => parseMarkdownForImport(markdown), [markdown])
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setError('')
+    setSaving(true)
+    try {
+      const result = await importMaterials(markdown)
+      setImportedCount(result.count)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '批量导入失败，请检查内容后重试')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (importedCount !== null) return <main className="material-page by-container">
+    <div className="by-eyebrow by-eyebrow--tick">批量导入</div><h1>导入完成</h1>
+    <p role="status">成功导入 {importedCount} 条草稿素材。</p>
+    <Link className="primary-link" to="/materials">返回素材列表</Link>
+  </main>
+
+  return <main className="material-page by-container">
+    <Link to="/materials">← 返回素材列表</Link><div className="by-eyebrow by-eyebrow--tick">批量导入</div>
+    <h1>导入 Markdown 素材</h1><p className="by-lead">每条素材使用「## 标题」开头，标题下方填写正文。导入后均为草稿，类型待补充。</p>
+    <Card accent className="form-card"><form onSubmit={submit} className="material-form">
+      <label htmlFor="markdown-import">Markdown 内容<textarea id="markdown-import" rows={16} value={markdown} onChange={event => { setMarkdown(event.target.value); setError('') }} placeholder={'## 一个故事\n\n正文内容……\n\n## 一个案例\n\n正文内容……'} /></label>
+      {parsed.error ? <Callout tone="risk" role="alert">格式错误：{parsed.error} 请修正后再导入；本次不会导入任何素材。</Callout> : <p className="result-count" role="status">待导入 {parsed.items.length} 条素材</p>}
+      {error && <Callout tone="risk" role="alert">{error}</Callout>}
+      <Button type="submit" disabled={saving || Boolean(parsed.error) || parsed.items.length === 0}>{saving ? '导入中…' : '确认导入'}</Button>
+    </form></Card>
   </main>
 }
 

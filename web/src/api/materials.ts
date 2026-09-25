@@ -43,6 +43,17 @@ export async function createMaterial(payload: NewMaterial): Promise<Material> {
   return response.json() as Promise<Material>
 }
 
+export async function importMaterials(markdown: string): Promise<{ count: number }> {
+  const response = await fetch('/api/v1/materials/import', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ markdown }),
+  })
+  if (!response.ok) {
+    const result = await response.json().catch(() => null) as { error?: { message?: string } } | null
+    throw new Error(result?.error?.message || '批量导入失败，请检查内容后重试')
+  }
+  return response.json() as Promise<{ count: number }>
+}
+
 export type MaterialUpdate = { title: string; type: string | null; body: string | null; status: string }
 
 export async function updateMaterial(id: string, payload: MaterialUpdate): Promise<Material> {
