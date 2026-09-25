@@ -42,6 +42,67 @@ test('same title warns but still allows saving another material', async ({ page 
 })
 
 for (const width of [1280, 375]) {
+  test(`review alerts filter and show the two actual-use sessions at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const title = `虚构连续差提示 ${crypto.randomUUID()}`
+    const created = await page.request.post('/api/v1/materials', {
+      data: { title, type: '故事', body: '虚构提示列表正文' },
+    })
+    expect(created.ok()).toBe(true)
+    const material = await created.json() as { id: string }
+    const updated = await page.request.put(`/api/v1/materials/${material.id}`, {
+      data: { title, type: '故事', body: '虚构提示列表正文', status: '可用', review_date: '2000-01-01' },
+    })
+    expect(updated.ok()).toBe(true)
+
+    async function record(day: string, effect: string) {
+      const customer = await (await page.request.post('/api/v1/customers', {
+        data: { name: `虚构提示客户 ${crypto.randomUUID()}` },
+      })).json() as { id: string; name: string }
+      const course = await (await page.request.post('/api/v1/courses', {
+        data: { name: `虚构提示课程 ${crypto.randomUUID()}` },
+      })).json() as { id: string; name: string }
+      const audience = await (await page.request.post('/api/v1/audience-types', {
+        data: { name: `虚构提示人群 ${crypto.randomUUID()}` },
+      })).json() as { id: string; name: string }
+      const sessionResponse = await page.request.post('/api/v1/sessions', {
+        data: { customer_id: customer.id, course_id: course.id, session_date: day,
+          audience_type_ids: [audience.id], duration: '一天' },
+      })
+      expect(sessionResponse.ok()).toBe(true)
+      const session = await sessionResponse.json() as { id: string }
+      const plannedResponse = await page.request.post(`/api/v1/sessions/${session.id}/usages`, {
+        data: { material_id: material.id },
+      })
+      expect(plannedResponse.ok()).toBe(true)
+      const usage = await plannedResponse.json() as { id: string }
+      const saved = await page.request.put(`/api/v1/sessions/${session.id}/post-class`, {
+        data: { usages: [{ id: usage.id, status: '已用', effect }] },
+      })
+      expect(saved.ok()).toBe(true)
+      return { day, customer: customer.name, course: course.name, audience: audience.name }
+    }
+
+    const older = await record('2026-09-20', '差')
+    const newer = await record('2026-09-21', '差')
+    await page.goto('/materials')
+    await page.getByLabel('系统提示').selectOption('review_overdue')
+    const warningCard = page.getByRole('link', { name: new RegExp(title) })
+    await expect(warningCard).toBeVisible()
+    await expect(warningCard.getByText('复核已过期（2000-01-01）')).toBeVisible()
+    await expect(page.getByText('建议复核')).toHaveCount(0)
+    await page.getByLabel('系统提示').selectOption('consecutive_bad')
+    await expect(warningCard.getByText('建议复核')).toBeVisible()
+    for (const details of [older, newer]) {
+      await expect(warningCard.getByText(new RegExp(`${details.day}.*${details.audience}.*${details.customer}.*${details.course}`))).toBeVisible()
+    }
+    const savedMaterial = await (await page.request.get(`/api/v1/materials/${material.id}`)).json() as { status: string }
+    expect(savedMaterial.status).toBe('可用')
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`review, demo verification, case category and retirement fields edit and display at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     async function createMaterial(title: string, type: string, status: string, extra: object) {

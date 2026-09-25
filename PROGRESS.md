@@ -30,6 +30,7 @@
 - Task 23: PASS
 - Task 24: PASS
 - Task 25: PASS
+- Task 26: PASS
 
 ## 已验收基线
 
@@ -65,6 +66,7 @@
 - Task 19 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55471，`benyan_test` / `benyan_e2e`，迁移至单一 head `0005_material_courses`；未使用 .env 数据库，已停止并删除）；手工在库中先写入虚构素材 + 课程 + `material_courses` 关联：连续两轮 `demo-data` 均成功（关联表清为 0，重建 7 素材 / 2 课程 / 3 场次），连续两轮 `demo-clean` 均成功（关联、素材、课程、场次全为 0，alembic 版本保留）；输入 `no`、空行、EOF 取消退出码 0 且数据零变化，`APP_ENV=production` 被拒绝且数据零变化；`make check` 通过（ruff、pyright 0 errors、后端 163 passed、E2E 数据库门禁、前端 14 passed、build），同一测试库上连续重复运行 `make check` 亦通过，`make smoke` 通过，`make e2e` 37 passed，`git diff --check` 通过。审查确认：diff 仅为 `scripts/demo_data.py` 增加 `delete(material_courses)`（位于 Material / Course 删除之前，仍在同一事务）、`tests/test_demo_data.py` 每轮 seed / clean 前写入虚构旧行业 / 人群 / 课程 / 素材 / 关联并断言关联表计数；原有 production、目标展示、精确 `yes`、取消零变化测试未改动；无 schema / migration / API / 前端变更，未新增 Demo 关联数据，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；目标展示测试依赖测试库 URL 主机名为 `localhost`（既有前提）；未对旧版代码做反向复现（依据 Task 18 验收记录与新增回归测试覆盖）。
 - Task 21 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 21 material tags`
 - Task 22 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 22 material audience industry tag filters`
+- Task 26 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 26 review overdue and consecutive bad usage alerts`（以该 commit 为准，不使用 HEAD）
 - Task 25 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 25 material review demo case retirement fields`
 - Task 23 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 23 material family source relationship`
 - Task 23 独立验收时（全新 Verifier 会话）：隔离临时 PostgreSQL 17 集群（127.0.0.1:55451，`benyan_test` / `benyan_e2e`，验收后停止并删除；未使用 .env 远程库与 5432 实例），迁移至单一 head `0008_material_source`；`make check` 通过（ruff、pyright 0 errors、后端 169 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 45 passed（含 1280px / 375px 源素材归根、清除、详情成员），`git diff --check` 通过。完整 diff 审查并用 API 探测确认：自引用 422 `MATERIAL_SOURCE_INVALID`（另有 DB check constraint）；不存在的源素材 422 `MATERIAL_SOURCE_NOT_FOUND`；选择已有子素材作为目标时归一到其家族根；选择当前家族成员（会成环）422；PUT 省略保留关系、显式 null 清除；带成员的根迁入另一家族时直系成员同事务重挂到目标根，全程保持单层、无环；详情返回源素材与同家族成员；旧素材（迁移后 source 为空）为独立家族；不复制其他字段、不合并 usage；`/family-candidates` 位于 `/{id}` 之前。未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；候选接口一次返回全部素材 ID / 标题，规模未评估；重复使用检查按家族归并属后续 Task（本 Task 仅提供关系）；smoke 脚本不覆盖 PUT。
@@ -146,13 +148,12 @@
 
 ## 当前尚未具备
 
-- 复核到期与连续两次效果差提示（Task 26）
 - 课后登记完成状态字段（V1 不建设）
 - 后端分页聚合 / 游标接口、可搜索的大候选集下拉（本 Task 明确不做）
 
 ## 当前任务
 
-- 无进行中 Task；下一个为 Task 26。
+- 无进行中的 Task。Task 26 已 PASS；下一个为 Task 27（草稿待补全）。
 
 ## 上一已验收任务摘要
 
@@ -163,7 +164,7 @@
 
 ## 下一步
 
-- Task 26：复核到期与连续两次差评提示。
+- 由 Orchestrator 推进 Task 27（当前为草稿，需先补全 Task 文件）。
 
 ## Task 22 施工与验证
 
@@ -221,3 +222,20 @@
 - 证据：隔离临时 PostgreSQL 17 集群（localhost:57525，验收后停止并删除；未使用 .env 远程库）。迁移：0008 库插入虚构旧素材后升级至 head，四字段均为 NULL，downgrade / 再 upgrade 正常，`alembic heads` 单一 head `0009_material_fields`；直接 SQL 确认非案例类型设置案例类别被 CHECK 拒绝。`make check` 通过（ruff、pyright 0 errors、后端 174 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`E2E_POSTGRES_DB=task25_indep_e2e make e2e` 49 passed（含 1280px / 375px 四字段编辑、详情展示、清空、Demo→故事切换清空），`git diff --check` 通过。完整 diff 审查确认：PUT 省略字段保留原值、显式 null / 空白清空；类型非“案例”/“Demo”、状态非“退役”时服务端确定性清空对应字段（含草稿 type 为空）；案例类别为 Literal 两值，非法值 422；详情仅在有值且适用时展示；快速录入未改动；无自动复核日期、状态变化或到期提示等越界内容；未发现真实业务数据或 Secret。
 - 限制：未在 Docker Compose 复测；数据库 CHECK 对 type 为 NULL（草稿）的行不拦截案例类别 / Demo 日期（NULL 语义），该场景由应用层清空保证；smoke 不覆盖 PUT。
 - accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 25 material review demo case retirement fields`（以该 commit 为准，不使用 HEAD）。
+
+## Task 26 施工状态
+
+- 当前状态：PASS（见下方独立验收）。素材列表新增系统提示筛选：复核已过期、最近连续两次效果差，以及两类提示的合并入口；各提示显示在对应素材卡片中。
+- 实际完成：复核日期严格早于当天才过期；当日日期、未来日期和空日期均不过期。连续差只检查该素材按场次日期最近的两条“已用”记录；两条均明确为“差”时提示“建议复核”，并按最近到较早展示日期、人群、客户、课程。计划 / 未用不参与。最近实际使用记录若为“好”或“未评”，都会使连续差提示不成立；“未评”仍是未评价，不映射成“一般”，也不会跳过该条去拼接更早的差评。系统提示不写入或改变人工状态。
+- Migration / schema：无 schema 或 migration 变更；Alembic head 仍为 `0009_material_fields`。
+- 验证：最终 `make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E DB 安全门禁、前端 lint / typecheck、Vitest 14 passed、production build）；`make smoke` 通过（health 200 / X-Request-ID、404 错误响应）；`E2E_POSTGRES_DB=task26_release_e2e make e2e` 通过（51 passed，含 1280px / 375px 到期筛选、连续差提示、两次场次信息与无横向溢出）；`git diff --check` 通过。后端测试覆盖过期 / 当日 / 未来 / 无日期、计划与未用排除、连续差、好结果打断、未评语义、场次信息及状态不变。
+- 冻结判断：连续性按该素材最近两条实际“已用”记录判断；最新一条是“未评”时不提示，也不将“未评”解释为一般或跳过它。日期“过期”使用服务进程本地日期，部署环境的日历时区需与运营预期一致。
+- 已知限制 / 待验收：未在 Docker Compose 环境复测；高使用记录规模下的列表查询性能未评估。Developer 自验不构成独立验收；未更新 accepted baseline。
+- 下一步：Independent Verifier 独立审查本轮交付并按规则写入验收状态；不得修改 Orchestrator 管理的 `TASK_BOARD.md` 与 `RUN_LOG.md`。
+
+## Task 26 独立验收
+
+- 结论：PASS（全新 Independent Verifier，Claude Sonnet 5）。
+- 证据：隔离临时 PostgreSQL 17 集群（localhost:57626，验收后停止并删除；未使用 .env 远程库）。`make check` 通过（ruff、pyright 0 errors、后端 175 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`E2E_POSTGRES_DB=task26_indep_e2e make e2e` 51 passed（含 1280px / 375px 到期筛选、连续差提示、两次场次信息、无横向溢出），`git diff --check` 通过。完整 diff 审查确认：`review_date < 今天` 才过期，当日 / 未来 / 空日期均不过期；连续差以窗口函数取该素材按场次日期最近的两条“已用”记录，两条均为“差”才命中，计划 / 未用被排除；最近一条为“好”或“未评”都会中断，“未评”不被当作一般也不被跳过；提示按最近到较早展示日期、人群、客户、课程；`alert` 为 Literal 三值（其余 422），筛选与其他条件共同作用于 total 与分页；提示只读，不改素材状态；入口为素材列表预设筛选，无独立关注面板；无 schema / migration 变更（head 仍 `0009_material_fields`）；未发现真实业务数据或 Secret。
+- 限制：未在 Docker Compose 复测；“过期”按服务进程本地日期；同日多场次以 usage.updated_at、id 作次序兜底；高使用记录规模下列表查询性能未评估。
+- accepted baseline：Verifier 创建的最终任务 commit `feat: complete task 26 review overdue and consecutive bad usage alerts`（以该 commit 为准，不使用 HEAD）。

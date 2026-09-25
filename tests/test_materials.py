@@ -2,7 +2,7 @@ import asyncio
 import logging
 import os
 from collections.abc import AsyncIterator, Iterator
-from datetime import date
+from datetime import date, timedelta
 from uuid import UUID, uuid4
 
 import pytest
@@ -15,7 +15,7 @@ from sqlalchemy.pool import NullPool
 from app.db.session import get_session
 from app.main import app
 from app.models.material import MATERIAL_STATUSES, Material
-from tests.helpers import create_course
+from tests.helpers import create_audience_type, create_course, create_customer
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://benyan:benyan_local@localhost:5432/benyan_test"
@@ -213,6 +213,102 @@ def test_material_review_demo_case_retirement_fields_and_switching(client: TestC
     invalid_category = client.put(url, json={**base, "case_category": "C 虚构类别"})
     assert invalid_category.status_code == 422
     assert client.get(url).json()["case_category"] is None
+
+
+def test_material_list_review_alerts_and_consecutive_bad_semantics(client: TestClient) -> None:
+    today = date.today()
+
+    def create(title: str, review_date: date | None = None, status: str = "可用") -> dict:
+        response = client.post("/api/v1/materials", json={
+            "title": f"{title} {uuid4().hex}", "type": "故事", "body": "虚构提示测试正文",
+        })
+        assert response.status_code == 201, response.text
+        material = response.json()
+        updated = client.put(f"/api/v1/materials/{material['id']}", json={
+            "title": material["title"], "type": "故事", "body": material["body"],
+            "status": status, "review_date": review_date.isoformat() if review_date else None,
+        })
+        assert updated.status_code == 200, updated.text
+        return updated.json()
+
+    def use(material: dict, session_date: date, effect: str, status: str = "已用") -> dict:
+        customer = create_customer(client)
+        course = create_course(client)
+        audience = create_audience_type(client)
+        created_session = client.post("/api/v1/sessions", json={
+            "customer_id": customer["id"], "course_id": course["id"],
+            "session_date": session_date.isoformat(), "audience_type_ids": [audience["id"]],
+            "duration": "一天",
+        })
+        assert created_session.status_code == 201, created_session.text
+        session = created_session.json()
+        planned = client.post(f"/api/v1/sessions/{session['id']}/usages", json={
+            "material_id": material["id"],
+        })
+        assert planned.status_code == 201, planned.text
+        saved = client.put(f"/api/v1/sessions/{session['id']}/post-class", json={
+            "usages": [{"id": planned.json()["id"], "status": status, "effect": effect}],
+        })
+        assert saved.status_code == 200, saved.text
+        return {"date": session_date.isoformat(), "customer": customer["name"],
+                "course": course["name"], "audience": audience["name"]}
+
+    overdue = create("虚构过期复核素材", today - timedelta(days=1))
+    current = create("虚构当日复核素材", today)
+    future = create("虚构未到复核素材", today + timedelta(days=1))
+    no_date = create("虚构无复核日期素材")
+    assert client.get("/api/v1/materials", params={"alert": "review_overdue"}).status_code == 200
+    overdue_rows = client.get("/api/v1/materials", params={
+        "alert": "review_overdue", "q": overdue["title"],
+    }).json()["items"]
+    assert len(overdue_rows) == 1
+    assert overdue_rows[0]["review_overdue"] is True
+    for material in (current, future, no_date):
+        row = client.get("/api/v1/materials", params={
+            "alert": "review_overdue", "q": material["title"],
+        }).json()
+        assert row["total"] == 0
+
+    streak = create("虚构连续差素材", today - timedelta(days=10), "可用")
+    older = use(streak, today - timedelta(days=3), "差")
+    newer = use(streak, today - timedelta(days=2), "差")
+    use(streak, today - timedelta(days=1), "未评", "未用")
+    planned_session = client.post("/api/v1/sessions", json={
+        "customer_id": create_customer(client)["id"], "course_id": create_course(client)["id"],
+        "session_date": today.isoformat(),
+        "audience_type_ids": [create_audience_type(client)["id"]], "duration": "一天",
+    }).json()
+    assert client.post(f"/api/v1/sessions/{planned_session['id']}/usages", json={
+        "material_id": streak["id"],
+    }).status_code == 201
+
+    interrupted_by_good = create("虚构好结果打断素材")
+    use(interrupted_by_good, today - timedelta(days=3), "差")
+    use(interrupted_by_good, today - timedelta(days=2), "差")
+    use(interrupted_by_good, today - timedelta(days=1), "好")
+    interrupted_by_unrated = create("虚构未评打断素材")
+    use(interrupted_by_unrated, today - timedelta(days=3), "差")
+    use(interrupted_by_unrated, today - timedelta(days=2), "差")
+    use(interrupted_by_unrated, today - timedelta(days=1), "未评")
+
+    bad_rows = client.get("/api/v1/materials", params={
+        "alert": "consecutive_bad", "q": streak["title"],
+    }).json()
+    assert bad_rows["total"] == 1
+    item = bad_rows["items"][0]
+    assert item["status"] == "可用"
+    assert item["review_overdue"] is True
+    assert item["consecutive_bad_usages"] == [
+        {"session_date": newer["date"], "audience_types": [newer["audience"]],
+         "customer_name": newer["customer"], "course_name": newer["course"]},
+        {"session_date": older["date"], "audience_types": [older["audience"]],
+         "customer_name": older["customer"], "course_name": older["course"]},
+    ]
+    assert client.get(f"/api/v1/materials/{streak['id']}").json()["status"] == "可用"
+    for material in (interrupted_by_good, interrupted_by_unrated):
+        assert client.get("/api/v1/materials", params={
+            "alert": "consecutive_bad", "q": material["title"],
+        }).json()["total"] == 0
 
 
 def test_material_source_is_normalized_cleared_and_family_members_are_readable(

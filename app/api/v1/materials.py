@@ -1,26 +1,31 @@
+from datetime import date
 from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import case, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, selectinload
 
 from app.core.exceptions import ApplicationError
 from app.db.session import get_session
 from app.models.course import Course
 from app.models.material import Material
+from app.models.session import Session
+from app.models.usage import Usage
 from app.models.vocabulary import AudienceType, Industry
 from app.schemas.material import (
     MaterialCreate,
     MaterialDetailRead,
     MaterialFamilyCandidate,
+    MaterialListItem,
     MaterialMarkdownImport,
     MaterialMarkdownImportResult,
     MaterialPage,
     MaterialRead,
     MaterialReference,
     MaterialUpdate,
+    ReviewWarningSession,
 )
 
 DbSession = Annotated[AsyncSession, Depends(get_session)]
@@ -29,6 +34,7 @@ router = APIRouter(prefix="/materials", tags=["materials"])
 
 MaterialStatusFilter = Literal["草稿", "可用", "主力", "待更新", "退役"]
 MaterialTypeFilter = Literal["故事", "案例", "Demo", "金句", "段子", "行业素材"]
+MaterialAlertFilter = Literal["review_overdue", "consecutive_bad", "attention"]
 
 
 def parse_markdown_import(markdown: str) -> list[tuple[str, str]]:
@@ -121,6 +127,7 @@ async def list_materials(session: DbSession,
                          audience_type_id: Annotated[UUID | None, Query()] = None,
                          industry_id: Annotated[UUID | None, Query()] = None,
                          tag: Annotated[str | None, Query(max_length=255)] = None,
+                         alert: Annotated[MaterialAlertFilter | None, Query()] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
     where = []
@@ -159,11 +166,70 @@ async def list_materials(session: DbSession,
         where.append(Material.industries.any(Industry.id == industry_id))
     if tag is not None:
         where.append(Material.tags.contains([tag]))
+    today = date.today()
+    overdue = Material.review_date.is_not(None) & (Material.review_date < today)
+    ranked_usages = select(
+        Usage.material_id.label("material_id"),
+        Usage.effect.label("effect"),
+        func.row_number().over(
+            partition_by=Usage.material_id,
+            order_by=(Session.session_date.desc(), Usage.updated_at.desc(), Usage.id.desc()),
+        ).label("position"),
+    ).join(Session, Session.id == Usage.session_id).where(Usage.status == "已用").subquery()
+    consecutive_bad_ids = (
+        select(ranked_usages.c.material_id)
+        .where(ranked_usages.c.position <= 2)
+        .group_by(ranked_usages.c.material_id)
+        .having(
+            func.count() == 2,
+            func.count(case((ranked_usages.c.effect == "差", 1))) == 2,
+        )
+    )
+    consecutive_bad = Material.id.in_(consecutive_bad_ids)
+    if alert == "review_overdue":
+        where.append(overdue)
+    elif alert == "consecutive_bad":
+        where.append(consecutive_bad)
+    elif alert == "attention":
+        where.append(or_(overdue, consecutive_bad))
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))
     rows = await session.scalars(select(Material).where(*where)
                                  .order_by(Material.created_at.desc(), Material.id.desc())
                                  .offset((page - 1) * page_size).limit(page_size))
-    return MaterialPage(items=[MaterialRead.model_validate(row) for row in rows],
+    materials = list(rows.all())
+    recent_usages: dict[UUID, list[tuple[str, ReviewWarningSession]]] = {}
+    if materials:
+        recent_rows = await session.execute(
+            select(Usage, Session)
+            .join(Session, Session.id == Usage.session_id)
+            .where(Usage.material_id.in_([item.id for item in materials]), Usage.status == "已用")
+            .options(selectinload(Session.audience_types))
+            .order_by(Session.session_date.desc(), Usage.updated_at.desc(), Usage.id.desc())
+        )
+        for usage, teaching_session in recent_rows:
+            recent = recent_usages.setdefault(usage.material_id, [])
+            if len(recent) < 2:
+                recent.append((usage.effect, ReviewWarningSession(
+                    session_date=teaching_session.session_date,
+                    audience_types=[audience.name for audience in teaching_session.audience_types],
+                    customer_name=teaching_session.customer.name,
+                    course_name=teaching_session.course.name,
+                )))
+    items: list[MaterialListItem] = []
+    for material in materials:
+        latest = recent_usages.get(material.id, [])
+        # Keep the sequence decision tied to the two newest actual-use records;
+        # an unrated record is not treated as an average rating or skipped.
+        is_consecutive_bad = len(latest) == 2 and all(
+            effect == "差" for effect, _details in latest
+        )
+        items.append(MaterialListItem(
+            **MaterialRead.model_validate(material).model_dump(),
+            review_overdue=material.review_date is not None and material.review_date < today,
+            consecutive_bad_usages=[details for _effect, details in latest]
+            if is_consecutive_bad else [],
+        ))
+    return MaterialPage(items=items,
                         page=page, page_size=page_size, total=total or 0)
 
 

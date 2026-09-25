@@ -143,13 +143,25 @@ class MaterialRead(BaseModel):
     updated_at: datetime
 
 
+class ReviewWarningSession(BaseModel):
+    session_date: date
+    audience_types: list[str]
+    customer_name: str
+    course_name: str
+
+
+class MaterialListItem(MaterialRead):
+    review_overdue: bool = False
+    consecutive_bad_usages: list[ReviewWarningSession] = Field(default_factory=list)
+
+
 class MaterialDetailRead(MaterialRead):
     source_material: MaterialReference | None = None
     family_members: list[MaterialReference] = Field(default_factory=list)
 
 
 class MaterialPage(BaseModel):
-    items: list[MaterialRead]
+    items: list[MaterialListItem]
     page: int
     page_size: int
     total: int

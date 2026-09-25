@@ -24,8 +24,16 @@ export type Material = {
   status: string
   created_at: string
   updated_at: string
+  review_overdue?: boolean
+  consecutive_bad_usages?: ReviewWarningSession[]
 }
 export type MaterialReference = { id: string; title: string }
+export type ReviewWarningSession = {
+  session_date: string
+  audience_types: string[]
+  customer_name: string
+  course_name: string
+}
 export type MaterialFamilyCandidate = MaterialReference & {
   source_material_id: string | null
   source_title: string | null
@@ -46,7 +54,7 @@ export const materialTypes = ['故事', '案例', 'Demo', '金句', '段子', '�
 
 export async function listMaterials(q = '', page = 1, status = '', type = '', pageSize?: number,
                                    courseId = '', audienceTypeId = '', industryId = '',
-                                   tag = ''): Promise<MaterialPage> {
+                                   tag = '', alert = ''): Promise<MaterialPage> {
   const params = new URLSearchParams({ q, page: String(page) })
   if (pageSize) params.set('page_size', String(pageSize))
   if (status) params.set('status', status)
@@ -55,6 +63,7 @@ export async function listMaterials(q = '', page = 1, status = '', type = '', pa
   if (audienceTypeId) params.set('audience_type_id', audienceTypeId)
   if (industryId) params.set('industry_id', industryId)
   if (tag) params.set('tag', tag)
+  if (alert) params.set('alert', alert)
   const response = await fetch(`/api/v1/materials?${params}`)
   if (!response.ok) throw new Error('素材列表加载失败')
   return response.json() as Promise<MaterialPage>

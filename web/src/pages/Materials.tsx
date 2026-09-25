@@ -18,6 +18,7 @@ export function MaterialList() {
   const audienceTypeId = params.get('audience_type_id') || ''
   const industryId = params.get('industry_id') || ''
   const tag = params.get('tag') || ''
+  const alert = params.get('alert') || ''
   const page = Math.max(1, Number(params.get('page') || '1') || 1)
   const [input, setInput] = useState(q)
   const [result, setResult] = useState<MaterialPage | null>(null)
@@ -44,17 +45,21 @@ export function MaterialList() {
     setResult(null)
     setError('')
     listMaterials(q, page, status, type, undefined, courseId,
-      audienceTypeId, industryId, tag).then(data => { if (active) { setResult(data); setError('') } })
+      audienceTypeId, industryId, tag, alert).then(data => { if (active) { setResult(data); setError('') } })
       .catch(() => { if (active) setError('素材列表加载失败') })
     return () => { active = false }
-  }, [q, page, status, type, courseId, audienceTypeId, industryId, tag])
-  const firstPageParams = (overrides: Record<string, string>) => setParams({
+  }, [q, page, status, type, courseId, audienceTypeId, industryId, tag, alert])
+  const withAlertParam = (next: Record<string, string>) => {
+    if (!next.alert) delete next.alert
+    return next
+  }
+  const firstPageParams = (overrides: Record<string, string>) => setParams(withAlertParam({
     q, course_id: courseId, audience_type_id: audienceTypeId, industry_id: industryId,
-    tag, type, status, page: '1', ...overrides,
-  })
-  const currentParams = (nextPage: string) => ({
+    tag, type, status, alert, page: '1', ...overrides,
+  }))
+  const currentParams = (nextPage: string) => withAlertParam({
     q, course_id: courseId, audience_type_id: audienceTypeId, industry_id: industryId,
-    tag, type, status, page: nextPage,
+    tag, type, status, alert, page: nextPage,
   })
   return <main className="material-page by-container">
     <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>素材列表</h1><p className="by-lead">随手记录，随时找回。</p></div><div className="detail-actions"><Link className="secondary-link" to="/materials/import">批量导入</Link><Link className="primary-link" to="/materials/new">快速录入</Link></div></header>
@@ -91,10 +96,18 @@ export function MaterialList() {
         <option value="">全部状态</option>{materialStatuses.map(item => <option key={item} value={item}>{item}</option>)}
       </select>
     </label>
+    <label className="material-status-filter" htmlFor="material-alert">系统提示
+      <select id="material-alert" value={alert} onChange={event => firstPageParams({ alert: event.target.value })}>
+        <option value="">全部素材</option>
+        <option value="review_overdue">复核已过期</option>
+        <option value="consecutive_bad">最近连续两次效果差</option>
+        <option value="attention">复核过期或连续两次差</option>
+      </select>
+    </label>
     {filterError && <Callout tone="risk">{filterError}</Callout>}{error && <Callout tone="risk">{error}</Callout>}
     {!result && !error && <p className="result-count">素材加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 条素材</p><div className="material-grid">
-      {result.items.map(material => <Link key={material.id} to={`/materials/${material.id}`} className="material-link"><Card interactive accent><div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p>{material.type || '未填写类型'}</p>{material.body?.trim() ? <p className="material-excerpt">{material.body.trim()}</p> : <p className="material-excerpt material-excerpt--empty">尚未填写正文</p>}</Card></Link>)}
+      {result.items.map(material => <Link key={material.id} to={`/materials/${material.id}`} className="material-link"><Card interactive accent><div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p>{material.type || '未填写类型'}</p>{material.review_overdue && <p className="material-alert">复核已过期（{material.review_date}）</p>}{material.consecutive_bad_usages?.length === 2 && <div className="material-alert"><strong>建议复核</strong>{material.consecutive_bad_usages.map((usage, index) => <p key={`${usage.session_date}-${index}`}>场次 {usage.session_date} · {usage.audience_types.join('、') || '未填写人群'} · {usage.customer_name} · {usage.course_name}</p>)}</div>}{material.body?.trim() ? <p className="material-excerpt">{material.body.trim()}</p> : <p className="material-excerpt material-excerpt--empty">尚未填写正文</p>}</Card></Link>)}
     </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams(currentParams(String(page - 1)))}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams(currentParams(String(page + 1)))}>下一页</Button></nav></>}
   </main>
 }

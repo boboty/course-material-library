@@ -63,6 +63,8 @@
 .planned-item > div { min-width: 0; flex: 1; }
 .repeat-usage { display: flex; align-items: flex-start; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); color: var(--text-muted); font-size: var(--text-sm); line-height: 1.5; }
 .repeat-usage > span { min-width: 0; overflow-wrap: anywhere; }
+.material-alert { margin-top: var(--space-2); color: var(--text-body); font-size: var(--text-sm); line-height: 1.5; overflow-wrap: anywhere; }
+.material-alert p { margin: var(--space-1) 0 0; }
 .detail-body > div > h2 { font-size: var(--text-lg); }
 @media (max-width: 640px) { .by-container { padding-inline: var(--space-4); } .page-header { flex-direction: column; } .record-list { grid-template-columns: 1fr; } .planned-item { align-items: flex-start; } }
 .post-class-card { margin-bottom: 1rem; }
