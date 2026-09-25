@@ -20,6 +20,8 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## READY
 
+- Task 16 — 素材与课程多对多关系
+- Task 17 — 备课素材按当前课程优先展示
 
 ## BLOCKED
 
