@@ -12,7 +12,8 @@
 - Task 7: PASS
 - Task 8: PASS
 - Task 9: PASS
-- Paseo Experiment 001: PASS（独立 Verifier 已验收；工作区未提交）
+- Paseo Experiment 001: PASS（独立 Verifier 已验收；已由用户提交为 `794bcda`，未 push）
+- 工程规范迁移 v1.1.0 → v1.2.0：PASS（非产品 Task）
 
 ## 已验收基线
 
@@ -23,7 +24,8 @@
 - Task 7 accepted baseline: cdfd3d8ef8074997601cde7658a9fc0f129c55cf
 - Task 8 accepted baseline: 465a510886148d217a780888d0ea31cc10b1605f
 - Task 9 accepted baseline: e4c67874a979ebfea28bb6031c8ae2e6f49814d4
-- Paseo Experiment 001 未创建代码提交；accepted baseline 保持 Task 9 的提交
+- Paseo Experiment 001 在 v1.1.0 规则下验收，后由用户以 `794bcda` 提交；该提交不追溯为 accepted baseline，Task 9 基线记录不变
+- 工程规范迁移 v1.2.0 accepted baseline：Independent Verifier PASS 后创建的最终 commit `docs: migrate to BenYan Engineering Standard v1.2.0`（父提交 `794bcda`）
 - Migration head: 0003_usages（单一 head）
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
@@ -85,15 +87,13 @@
 
 ## 当前任务
 
-- **Paseo Experiment 001：Demo 确认词严格匹配边界测试 —— PASS**（Task 文件：`tasks/experiment-paseo-001.md`）。
-- 独立 Verifier 只读审查代码与测试，并独立运行相关测试，结论 PASS。按用户要求未 commit / push；accepted baseline 仍为 Task 9 的 `e4c67874a979ebfea28bb6031c8ae2e6f49814d4`。
-- 本轮实际完成范围：Demo 确认条件改为精确比较 `yes`；测试覆盖 `seed` / `clean` 的 `yes`、前后空格、大小写、空字符串和 EOF，并验证取消退出码 0、不进入数据库事务、原有数据计数不变。
-- Migration / schema：未变，单一 head 仍为 `0003_usages`；API 契约和前端未修改；未新增环境判断或跳过确认开关。
-- 验证：相关测试 16 passed（执行者与独立 Verifier 均单独运行）；最终版 `make check` 通过（ruff、pyright 0 errors、后端 135 passed、E2E 库门禁脚本、前端 14 passed 与 build）；`git diff --check` 通过。测试使用临时本地 PostgreSQL `benyan_test` 实例。
-- 未运行 `make smoke` / `make e2e`：本实验未涉及后端运行边界、页面或完整用户流程。
-- 已知风险：确认依赖 stdin；EOF 按取消处理。工作区变更尚未提交，尚无本实验的 accepted baseline 提交。
+- **工程规范迁移：BenYan Engineering Standard v1.1.0 → v1.2.0 —— PASS**（非产品 Task，不编号为 Task 10，无 Task 文件）。
+- 交付范围：仅 `AGENTS.md`（版本号更新；角色改为 Developer / Independent Verifier；RC 由 Verifier 写入且不 commit；PASS、验收证据、限制和 accepted baseline 仅由 Verifier 写入并创建最终任务 commit；Developer 内部 reviewer 不构成独立验收；push / merge 须人工授权）。另含本次 Verifier 写入的 `PROGRESS.md` 验收状态。
+- 独立验收证据：逐条对照 v1.2.0 的 `standards/11-git-delivery.md`、`12-ai-collaboration.md`、`14-definition-of-done.md`、`checklists/independent-verification.md`、`templates/AGENTS.md`、`docs/new-project.md`，无冲突；在 `AGENTS.md`、`PROGRESS.md`、`README.md`、`docs/`、`tasks/`、`.github/` 中搜索 `v1.1.0`、`执行角色`、`独立验收角色` 无残留；`git diff --check` 通过；无未跟踪文件；app / web / tests / scripts / alembic / docs / tasks / README 未改动；`make check` 通过（ruff、pyright 0 errors、后端 135 passed、前端 14 passed、build）。
+- 限制：`make check` 使用 Verifier 临时建立的本地 PostgreSQL `benyan_test` 实例（先执行 Alembic 至 head），验证后已销毁；未运行 `make smoke` / `make e2e`（本次仅治理文档变更）。Migration / schema 未变，单一 head 仍为 `0003_usages`。
+- 已冻结规则变更：自本基线起，Task 状态与提交权限按 `AGENTS.md` v1.2.0 角色分工执行；既有 Task 1–9 及 Paseo Experiment 001 的验收记录不追溯改写。
 - 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
 
 ## 下一步
 
-- 本实验已通过独立验收；等待后续任务指令，当前工作区保持未提交。
+- 规范迁移已通过独立验收并提交；等待后续任务指令。push 须人工授权。
