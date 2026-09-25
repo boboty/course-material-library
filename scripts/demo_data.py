@@ -11,6 +11,7 @@ from sqlalchemy import delete, insert
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import AudienceType, Course, Customer, Industry, Material, Session, Usage
+from app.models.material import material_courses
 from app.models.session import session_audiences
 
 NAMESPACE = UUID("ae280e7e-9d40-463d-841b-4c47674e67f5")
@@ -93,6 +94,7 @@ async def run(command: str) -> None:
     async with SessionLocal.begin() as db:
         # Delete children first. One transaction covers clearing and the optional reload.
         await db.execute(delete(session_audiences))
+        await db.execute(delete(material_courses))
         for model in (Usage, Session, Material, Customer, Course, AudienceType, Industry):
             await db.execute(delete(model))
         if command == "clean":
