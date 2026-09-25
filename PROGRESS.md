@@ -15,6 +15,7 @@
 - Task 10: PASS
 - Paseo Experiment 001: PASS（独立 Verifier 已验收；已由用户提交为 `794bcda`，未 push）
 - 工程规范迁移 v1.1.0 → v1.2.0：PASS（非产品 Task）
+- Task 11: PASS
 
 ## 已验收基线
 
@@ -28,6 +29,8 @@
 - Paseo Experiment 001 在 v1.1.0 规则下验收，后由用户以 `794bcda` 提交；该提交不追溯为 accepted baseline，Task 9 基线记录不变
 - 工程规范迁移 v1.2.0 accepted baseline：Independent Verifier PASS 后创建的最终 commit `docs: migrate to BenYan Engineering Standard v1.2.0`（父提交 `794bcda`）
 - Task 10 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 10 material status filter`（父提交 `58bef05`）
+- Task 11 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 11 duplicate title warning`（父提交 `e2e4667`）
+- Task 11 独立验收时：隔离本机 PostgreSQL 16 测试实例迁移至 `0003_usages`；`make check` 通过（ruff、pyright 0 errors、后端 138 passed、E2E 数据库门禁、前端 14 passed、build），`make smoke` 通过，`make e2e` 22 passed（含 1280px / 375px 同标题提示与保存），`git diff --check` 通过；审查确认前端查询前 trim 与既有保存时 strip 一致，后端 `title` 为区分大小写的精确相等查询，允许同标题并存；无 schema / migration 变更，未发现真实业务数据或 Secret。限制：未在 Docker Compose 环境复测；重复查询失败时静默不显示提示，保存仍可继续。
 - Migration head: 0003_usages（单一 head）
 - Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
@@ -64,6 +67,7 @@
 - Task 9 冻结：Demo 数据命令的误操作保护为“执行前展示目标数据库 + 显式确认”，不再限制数据库主机；确认词固定为 `yes`，其他输入、直接回车与 EOF 一律取消且不修改数据；取消以退出码 0 结束；目标展示只输出驱动、主机、端口、库名、用户，不输出密码；保留 `APP_ENV` 必须为 local / development 的判断；`demo-data` 与 `demo-clean` 共用同一保护路径；不提供跳过确认的开关，不新增环境判断、数据库命名规则或权限机制
 - Paseo Experiment 001 验证 Task 9 冻结规则的精确匹配边界；未新增或修改冻结判断
 - Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
+- Task 11 冻结：快速录入的同标题提示复用既有 `GET /api/v1/materials?title=` 精确相等查询（区分大小写、不做模糊或额外标准化）；前端以去除首尾空白后的标题查询，与后端保存时既有的 strip 行为一致，不属于新增标准化规则；提示不阻止保存，允许同标题素材并存的规则不变；查询失败时不显示提示且不影响保存。
 - Task 10 施工判断：素材列表的 `status` 为可选单值查询参数，值仅限现有五种素材状态；省略时查询全部，非法值按既有校验错误返回 422；关键词和状态条件共同作用于后端总数与分页。状态筛选不改变现有标题搜索范围。
 
 ## 当前已实现
@@ -81,6 +85,7 @@
 - Task 9 Demo 数据导入保护：`make demo-data` / `make demo-clean` 可指向任意主机的数据库；执行前打印目标数据库与清空提示并等待确认，仅 `yes` 执行，其他输入取消且数据零变化
 - Task 8 展示收口：页面 title / `html lang=zh-CN` / BenYan favicon；素材状态、使用效果、使用状态全站统一 Badge tone；场次详情“课后登记”为标题区主要操作、“选择计划素材”为次级操作；课后登记页 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404、列表与详情 loading、词表页错误返回入口修正；素材列表正文两行摘要
 - Task 10：素材列表可按单个状态筛选、切回全部状态，并与现有标题关键词搜索组合；状态及关键词提交后从第一页查询；状态保留在分页 URL 中；素材 Badge 沿用已有映射
+- Task 11：快速录入按后端精确标题查询显示同标题提示，提示下仍可保存新素材；提示在标题改为不同值后消失
 
 ## 当前尚未具备
 
@@ -92,7 +97,13 @@
 
 ## 当前任务
 
-- 无进行中 Task。Task 10：素材列表增加状态筛选 —— PASS（独立验收）。
+- 无进行中 Task。Task 11：素材快速录入标题重复提示收口 —— PASS（独立验收）。
+  - 现状核查：精确标题查询（后端 `title` 参数）、前端 `findExactTitle` 250ms 防抖查询与警示提示、同标题保存 E2E 已在既有实现中存在；本 Task 以收口和补齐验证为主，未重新设计
+  - 实际改动：`web/src/pages/Materials.tsx` 重复提示 Callout 增加 `role="status"`（可访问播报 / 可定位），文案与行为不变；`tests/test_materials.py` 新增精确查询不做大小写归一、首尾空格、前缀 / 扩展模糊匹配的边界测试；`web/e2e/materials.spec.ts` 新增 1280px / 375px 流程：不存在标题无提示 → 完全相同标题出现提示并链接已有素材 → 改为不同值提示消失 → 提示下仍可保存、无横向溢出 → 后端精确查询得到 2 条同标题素材
+  - Schema / migration：无变更，head 仍为 0003_usages；无 API 契约变更
+  - Developer 自验（临时本机 PostgreSQL 16，`/tmp/cml-task11-pg`，测试库迁移至 head，自验后已停止）：`make check` 通过（ruff、pyright 0 errors、后端 138 passed、E2E 数据库门禁、前端 14 passed、build）；`make e2e` 22 passed（含新增 2 条）；`make smoke` 通过；`git diff --check` 通过；测试数据均为虚构
+  - 独立验收：`make check` 通过（后端 138 passed、前端 14 passed、build）；`make smoke` 通过；`make e2e` 22 passed；`git diff --check` 通过。无 schema / migration 变更，无真实业务数据或 Secret
+  - 风险 / 限制：未在 Docker Compose 环境复测；重复查询请求失败时静默不提示，保存继续；E2E 中“不存在标题无提示”通过等待超过防抖时长后断言，属时间依赖断言
 
 ## 下一步
 

@@ -66,7 +66,7 @@ export function MaterialCreate() {
   }
   return <main className="material-page by-container"><Link to="/materials">← 返回素材列表</Link><div className="by-eyebrow by-eyebrow--tick">快速录入</div><h1>记录一条素材</h1><p className="by-lead">只需标题、类型和正文。保存后为草稿。</p>
     <Card accent className="form-card"><form onSubmit={submit} className="material-form"><label>标题<input required maxLength={255} value={title} onChange={event => setTitle(event.target.value)} /></label>
-      {duplicate && <Callout tone="warning">已有同标题素材，仍可继续保存。<Link to={`/materials/${duplicate.id}`}>查看已有素材</Link></Callout>}
+      {duplicate && <Callout tone="warning" role="status">已有同标题素材，仍可继续保存。<Link to={`/materials/${duplicate.id}`}>查看已有素材</Link></Callout>}
       <label>类型<select required value={type} onChange={event => setType(event.target.value)}><option value="">请选择类型</option>{types.map(item => <option key={item}>{item}</option>)}</select></label>
       <label>正文<textarea required rows={8} value={body} onChange={event => setBody(event.target.value)} /></label>
       {error && <Callout tone="risk">{error}</Callout>}<Button type="submit" disabled={saving}>{saving ? '保存中…' : '保存草稿'}</Button></form></Card>

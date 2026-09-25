@@ -42,6 +42,42 @@ test('same title warns but still allows saving another material', async ({ page 
 })
 
 for (const width of [1280, 375]) {
+  test(`duplicate title warning follows exact backend match at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const title = `虚构重复提示 ${crypto.randomUUID()}`
+    const existing = await page.request.post('/api/v1/materials', {
+      data: { title, type: '故事', body: '已有虚构正文' },
+    })
+    expect(existing.ok()).toBe(true)
+    const warning = page.getByRole('status').filter({ hasText: '已有同标题素材，仍可继续保存。' })
+
+    await page.goto('/materials/new')
+    await page.getByLabel('标题').fill(`${title} 新`)
+    await expect(page.getByRole('button', { name: '保存草稿' })).toBeEnabled()
+    await page.waitForTimeout(600)
+    await expect(warning).toHaveCount(0)
+
+    await page.getByLabel('标题').fill(title)
+    await expect(warning).toBeVisible()
+    await expect(warning.getByRole('link', { name: '查看已有素材' })).toHaveAttribute('href', `/materials/${(await existing.json()).id}`)
+
+    await page.getByLabel('标题').fill(`${title}x`)
+    await expect(warning).toHaveCount(0)
+
+    await page.getByLabel('标题').fill(title)
+    await expect(warning).toBeVisible()
+    await page.getByLabel('类型').selectOption('案例')
+    await page.getByLabel('正文').fill('重复提示后继续保存的虚构正文。')
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+    await page.getByRole('button', { name: '保存草稿' }).click()
+    await expect(page.getByText('重复提示后继续保存的虚构正文。')).toBeVisible()
+
+    const saved = await page.request.get(`/api/v1/materials?${new URLSearchParams({ title })}`)
+    expect((await saved.json()).total).toBe(2)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material status filter combines with search and resets page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const marker = crypto.randomUUID()

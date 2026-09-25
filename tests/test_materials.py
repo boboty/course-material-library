@@ -183,3 +183,15 @@ async def _check_database_constraints() -> None:
                 await trans.rollback()
     finally:
         await engine.dispose()
+
+
+def test_exact_title_query_does_not_normalize_or_fuzzy_match(client: TestClient) -> None:
+    title = f"虚构精确标题 Case {uuid4().hex}"
+    created = client.post("/api/v1/materials",
+                          json={"title": title, "type": "故事", "body": "虚构正文"})
+    assert created.status_code == 201
+    assert client.get("/api/v1/materials", params={"title": title}).json()["total"] == 1
+    for variant in (title.lower(), f"{title} ", f" {title}", title[:-1], f"{title}x"):
+        result = client.get("/api/v1/materials", params={"title": variant})
+        assert result.status_code == 200
+        assert result.json()["total"] == 0
