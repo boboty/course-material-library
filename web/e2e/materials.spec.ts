@@ -78,6 +78,77 @@ for (const width of [1280, 375]) {
 }
 
 for (const width of [1280, 375]) {
+  test(`course filter loads all courses and combines with other filters at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 812 })
+    const marker = crypto.randomUUID()
+
+    let courses = await (await page.request.get('/api/v1/courses?page=1&page_size=100')).json() as {
+      items: Array<{ id: string; name: string }>; total: number
+    }
+    while (courses.total <= 100) {
+      const batch = Math.min(100 - courses.total + 1, 25)
+      const created = await Promise.all(Array.from({ length: batch }, async () => {
+        const name = `虚构课程候选 ${crypto.randomUUID()}`
+        const response = await page.request.post('/api/v1/courses', { data: { name } })
+        expect(response.ok()).toBe(true)
+        return response.json() as Promise<{ id: string; name: string }>
+      }))
+      courses = { ...courses, total: courses.total + created.length }
+    }
+    const secondPage = await (await page.request.get('/api/v1/courses?page=2&page_size=100')).json() as {
+      items: Array<{ id: string; name: string }>
+    }
+    const selectedCourse = secondPage.items[0]
+    expect(selectedCourse).toBeTruthy()
+    const stopped = await page.request.put(`/api/v1/courses/${selectedCourse.id}`, {
+      data: { name: selectedCourse.name, status: '停用' },
+    })
+    expect(stopped.ok()).toBe(true)
+
+    const otherCourse = await page.request.post('/api/v1/courses', {
+      data: { name: `虚构共享课程 ${marker}` },
+    }).then(response => response.json()) as { id: string }
+    for (let index = 0; index < 21; index += 1) {
+      const title = `虚构课程筛选 ${marker} ${index}`
+      const created = await page.request.post('/api/v1/materials', {
+        data: { title, type: 'Demo', body: `课程筛选正文 ${marker}` },
+      })
+      expect(created.ok()).toBe(true)
+      const material = await created.json() as { id: string }
+      const updated = await page.request.put(`/api/v1/materials/${material.id}`, {
+        data: {
+          title, type: 'Demo', body: `课程筛选正文 ${marker}`, status: '可用',
+          course_ids: index === 0 ? [selectedCourse.id, otherCourse.id] : [selectedCourse.id],
+        },
+      })
+      expect(updated.ok()).toBe(true)
+    }
+    const unassociated = await page.request.post('/api/v1/materials', {
+      data: { title: `虚构无课程 ${marker}`, type: 'Demo', body: `课程筛选正文 ${marker}` },
+    })
+    expect(unassociated.ok()).toBe(true)
+
+    await page.goto(`/materials?q=${encodeURIComponent(marker)}&page=2`)
+    await expect(page.getByText('共 22 条素材')).toBeVisible()
+    const courseFilter = page.getByLabel('课程')
+    await expect(courseFilter.locator(`option[value="${selectedCourse.id}"]`)).toHaveCount(1)
+    await expect(courseFilter.locator(`option[value="${selectedCourse.id}"]`)).toContainText('（停用）')
+    await courseFilter.selectOption(selectedCourse.id)
+    await expect(page).toHaveURL(new RegExp(`course_id=${selectedCourse.id}.*page=1`))
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await page.getByLabel('类型').selectOption('Demo')
+    await page.getByLabel('状态').selectOption('可用')
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await expect(page.getByRole('heading', { name: new RegExp(`虚构课程筛选 ${marker} `) }).first()).toBeVisible()
+    await page.getByRole('button', { name: '下一页' }).click()
+    await expect(page).toHaveURL(new RegExp(`q=.*course_id=${selectedCourse.id}.*type=Demo&status=%E5%8F%AF%E7%94%A8&page=2`))
+    await expect(page.getByText('共 21 条素材')).toBeVisible()
+    await expect(page.getByText('第 2 页')).toBeVisible()
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  })
+}
+
+for (const width of [1280, 375]) {
   test(`material type, body search and combined filters work at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 812 })
     const marker = crypto.randomUUID()
@@ -233,8 +304,11 @@ for (const width of [1280, 375]) {
     await page.getByRole('checkbox', { name: secondName }).check()
     await page.getByRole('button', { name: '保存修改' }).click()
     await expect(page).toHaveURL(`/materials/${material.id}`)
-    await expect(page.getByRole('heading', { name: '关联课程' })).toBeVisible()
-    await expect(page.getByText(`${firstName}、${secondName}`)).toBeVisible()
+    const courseCard = page.locator('.detail-body').filter({
+      has: page.getByRole('heading', { name: '关联课程' }),
+    })
+    await expect(courseCard).toContainText(firstName)
+    await expect(courseCard).toContainText(secondName)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
     await page.goto(`/materials/${material.id}/edit`)
     await page.getByRole('checkbox', { name: firstName }).uncheck()

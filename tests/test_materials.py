@@ -61,6 +61,69 @@ def test_material_course_associations_replace_atomically(client: TestClient) -> 
     assert cleared.json()["courses"] == []
 
 
+def test_course_filter_combines_with_existing_filters_and_pagination(client: TestClient) -> None:
+    marker = uuid4().hex
+    first = create_course(client)
+    second = create_course(client)
+    inactive = client.put(f"/api/v1/courses/{second['id']}", json={
+        "name": second["name"], "status": "停用",
+    }).json()
+    ids: list[str] = []
+    for index in range(3):
+        created = client.post("/api/v1/materials", json={
+            "title": f"虚构课程筛选 {marker} {index}",
+            "type": "Demo" if index < 2 else "故事",
+            "body": f"虚构课程正文 {marker}",
+        }).json()
+        ids.append(created["id"])
+        course_ids = [first["id"]]
+        if index == 0:
+            course_ids.append(inactive["id"])
+        assert client.put(f"/api/v1/materials/{created['id']}", json={
+            "title": created["title"], "type": created["type"],
+            "body": created["body"], "status": "可用" if index < 2 else "草稿",
+            "course_ids": course_ids,
+        }).status_code == 200
+
+    default = client.get("/api/v1/materials", params={"q": marker})
+    assert default.status_code == 200
+    assert default.json()["total"] == 3
+    assert {item["id"] for item in default.json()["items"]} == set(ids)
+
+    page_params = {"q": marker, "course_id": first["id"], "page_size": 1}
+    first_page = client.get("/api/v1/materials", params=page_params).json()
+    second_page = client.get("/api/v1/materials", params={**page_params, "page": 2}).json()
+    assert first_page["total"] == second_page["total"] == 3
+    assert len(first_page["items"]) == len(second_page["items"]) == 1
+    assert first_page["items"][0]["id"] != second_page["items"][0]["id"]
+    assert {first_page["items"][0]["id"], second_page["items"][0]["id"]} <= set(ids)
+
+    stopped_course = client.get("/api/v1/materials", params={
+        "q": marker, "course_id": inactive["id"],
+    }).json()
+    assert stopped_course["total"] == 1
+    assert stopped_course["items"][0]["id"] == ids[0]
+    for filters, expected_ids in (
+        ({"q": marker, "course_id": first["id"], "type": "Demo"}, {ids[0], ids[1]}),
+        ({"q": marker, "course_id": first["id"], "status": "草稿"}, {ids[2]}),
+        ({"q": marker, "course_id": first["id"], "type": "Demo", "status": "可用"},
+         {ids[0], ids[1]}),
+    ):
+        filtered = client.get("/api/v1/materials", params=filters).json()
+        assert filtered["total"] == len(expected_ids)
+        assert {item["id"] for item in filtered["items"]} == expected_ids
+
+
+def test_course_filter_rejects_invalid_and_missing_ids(client: TestClient) -> None:
+    for course_id, status_code, error_code in (
+        ("invalid", 422, "VALIDATION_ERROR"),
+        (str(uuid4()), 404, "NOT_FOUND"),
+    ):
+        response = client.get("/api/v1/materials", params={"course_id": course_id})
+        assert response.status_code == status_code
+        assert response.json()["error"]["code"] == error_code
+
+
 @pytest.fixture
 def client() -> Iterator[TestClient]:
     engine = create_async_engine(TEST_DATABASE_URL)

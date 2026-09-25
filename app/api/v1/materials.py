@@ -112,6 +112,7 @@ async def list_materials(session: DbSession,
                              MaterialTypeFilter | None, Query(alias="type")
                          ] = None,
                          status: Annotated[MaterialStatusFilter | None, Query()] = None,
+                         course_id: Annotated[UUID | None, Query()] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
     where = []
@@ -124,6 +125,11 @@ async def list_materials(session: DbSession,
         where.append(Material.type == material_type)
     if status is not None:
         where.append(Material.status == status)
+    if course_id is not None:
+        course_exists = await session.scalar(select(Course.id).where(Course.id == course_id))
+        if course_exists is None:
+            raise HTTPException(status_code=404, detail="课程不存在")
+        where.append(Material.courses.any(Course.id == course_id))
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))
     rows = await session.scalars(select(Material).where(*where)
                                  .order_by(Material.created_at.desc(), Material.id.desc())

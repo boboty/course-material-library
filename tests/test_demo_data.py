@@ -73,11 +73,12 @@ def test_demo_rejects_production() -> None:
 
 
 def test_demo_shows_target_and_needs_confirmation_for_any_host() -> None:
+    test_port = make_url(TEST_DATABASE_URL).port or 5432
     remote = command("seed", url=TEST_DATABASE_URL.replace("localhost", "db.example.com"),
                      answer="no")
     assert remote.returncode == 0, remote.stderr
     assert "loopback" not in remote.stderr
-    assert "host=db.example.com:5432" in remote.stdout
+    assert f"host=db.example.com:{test_port}" in remote.stdout
     assert "database=benyan_test" in remote.stdout
     assert "benyan_local" not in remote.stdout
     assert "clears ALL existing business data" in remote.stdout
