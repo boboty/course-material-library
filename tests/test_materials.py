@@ -1,16 +1,17 @@
+import asyncio
 import os
 from collections.abc import AsyncIterator, Iterator
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.session import get_session
 from app.main import app
-from app.models.material import Material
+from app.models.material import MATERIAL_STATUSES, Material
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL", "postgresql+asyncpg://benyan:benyan_local@localhost:5432/benyan_test"
@@ -58,6 +59,53 @@ def test_duplicate_title_is_allowed(client: TestClient) -> None:
     assert client.post("/api/v1/materials", json=payload).status_code == 201
     assert client.post("/api/v1/materials", json=payload).status_code == 201
     assert client.get("/api/v1/materials", params={"q": payload["title"]}).json()["total"] == 2
+
+
+def test_status_filter_combines_with_search_and_pagination(client: TestClient) -> None:
+    marker = uuid4().hex
+    ids: dict[str, str] = {}
+    for status in MATERIAL_STATUSES:
+        response = client.post("/api/v1/materials", json={
+            "title": f"虚构筛选 {marker} {status}", "type": "故事", "body": "虚构正文",
+        })
+        assert response.status_code == 201
+        ids[status] = response.json()["id"]
+
+    async def set_statuses() -> None:
+        engine = create_async_engine(TEST_DATABASE_URL)
+        try:
+            async with engine.begin() as conn:
+                for status, material_id in ids.items():
+                    statement = (update(Material)
+                                 .where(Material.id == UUID(material_id))
+                                 .values(status=status))
+                    await conn.execute(statement)
+        finally:
+            await engine.dispose()
+
+    asyncio.run(set_statuses())
+    base = client.get("/api/v1/materials", params={"q": marker})
+    assert base.status_code == 200
+    assert base.json()["total"] == len(MATERIAL_STATUSES)
+    for status in MATERIAL_STATUSES:
+        result = client.get("/api/v1/materials", params={"q": marker, "status": status})
+        assert result.status_code == 200
+        assert result.json()["total"] == 1
+        assert result.json()["items"][0]["id"] == ids[status]
+
+    combined = client.get("/api/v1/materials", params={"q": f"{marker} 草稿", "status": "可用"})
+    assert combined.json()["total"] == 0
+    second_page = client.get("/api/v1/materials", params={"q": marker, "status": "草稿", "page": 2})
+    assert second_page.json()["total"] == 1
+    assert second_page.json()["items"] == []
+    assert client.get("/api/v1/materials", params={"q": marker}).json()["total"] == 5
+
+
+def test_invalid_status_filter_is_rejected(client: TestClient) -> None:
+    for status in ("未知", "", "草稿,可用"):
+        response = client.get("/api/v1/materials", params={"status": status})
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
 def test_exact_title_finds_match_beyond_fuzzy_first_page(client: TestClient) -> None:

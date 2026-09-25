@@ -15,6 +15,7 @@
 .search-row { display: flex; align-items: end; gap: var(--space-3); flex-wrap: wrap; }
 .search-row label { flex-basis: 100%; font-weight: var(--fw-semibold); }
 .search-row input { flex: 1; min-width: 180px; }
+.material-status-filter { display: grid; gap: var(--space-2); max-width: 240px; margin-top: var(--space-4); font-weight: var(--fw-semibold); }
 .material-page input, .material-page select, .material-page textarea { width: 100%; border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 10px 12px; font: inherit; background: var(--surface-card); color: var(--text-body); }
 .material-page input:focus-visible, .material-page select:focus-visible, .material-page textarea:focus-visible { outline: none; box-shadow: var(--ring-brand); }
 .result-count { margin-block: var(--space-6) var(--space-4); color: var(--text-muted); }

@@ -4,7 +4,7 @@ import { Button } from '../../../ui/design-system/components/core/Button.jsx'
 import { Badge } from '../../../ui/design-system/components/core/Badge.jsx'
 import { Card } from '../../../ui/design-system/components/surfaces/Card.jsx'
 import { Callout } from '../../../ui/design-system/components/surfaces/Callout.jsx'
-import { createMaterial, findExactTitle, getMaterial, listMaterials, type Material, type MaterialPage } from '../api/materials'
+import { createMaterial, findExactTitle, getMaterial, listMaterials, materialStatuses, type Material, type MaterialPage } from '../api/materials'
 import { materialStatusBadge } from '../ui/statusBadge'
 
 const types = ['故事', '案例', 'Demo', '金句', '段子', '行业素材']
@@ -12,26 +12,34 @@ const types = ['故事', '案例', 'Demo', '金句', '段子', '行业素材']
 export function MaterialList() {
   const [params, setParams] = useSearchParams()
   const q = params.get('q') || ''
+  const status = params.get('status') || ''
   const page = Math.max(1, Number(params.get('page') || '1') || 1)
   const [input, setInput] = useState(q)
   const [result, setResult] = useState<MaterialPage | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
     let active = true
-    listMaterials(q, page).then(data => { if (active) { setResult(data); setError('') } })
+    setResult(null)
+    setError('')
+    listMaterials(q, page, status).then(data => { if (active) { setResult(data); setError('') } })
       .catch(() => { if (active) setError('素材列表加载失败') })
     return () => { active = false }
-  }, [q, page])
+  }, [q, page, status])
   return <main className="material-page by-container">
     <header className="page-header"><div><div className="by-eyebrow by-eyebrow--tick">课程素材库</div><h1>素材列表</h1><p className="by-lead">随手记录，随时找回。</p></div><Link className="primary-link" to="/materials/new">快速录入</Link></header>
-    <form className="search-row" onSubmit={event => { event.preventDefault(); setParams({ q: input.trim(), page: '1' }) }}>
+    <form className="search-row" onSubmit={event => { event.preventDefault(); setParams({ q: input.trim(), status, page: '1' }) }}>
       <label htmlFor="material-search">搜索标题</label><input id="material-search" value={input} onChange={event => setInput(event.target.value)} /><Button type="submit">搜索</Button>
     </form>
+    <label className="material-status-filter" htmlFor="material-status">状态
+      <select id="material-status" value={status} onChange={event => setParams({ q, status: event.target.value, page: '1' })}>
+        <option value="">全部状态</option>{materialStatuses.map(item => <option key={item} value={item}>{item}</option>)}
+      </select>
+    </label>
     {error && <Callout tone="risk">{error}</Callout>}
     {!result && !error && <p className="result-count">素材加载中…</p>}
     {result && <><p className="result-count">共 {result.total} 条素材</p><div className="material-grid">
       {result.items.map(material => <Link key={material.id} to={`/materials/${material.id}`} className="material-link"><Card interactive accent><div className="material-card-top"><h2>{material.title}</h2><Badge {...materialStatusBadge(material.status)}>{material.status}</Badge></div><p>{material.type || '未填写类型'}</p>{material.body?.trim() ? <p className="material-excerpt">{material.body.trim()}</p> : <p className="material-excerpt material-excerpt--empty">尚未填写正文</p>}</Card></Link>)}
-    </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams({ q, page: String(page - 1) })}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams({ q, page: String(page + 1) })}>下一页</Button></nav></>}
+    </div>{result.total === 0 && <p>没有找到素材。</p>}<nav className="pager" aria-label="分页"><Button variant="secondary" disabled={page <= 1} onClick={() => setParams({ q, status, page: String(page - 1) })}>上一页</Button><span>第 {page} 页</span><Button variant="secondary" disabled={page * result.page_size >= result.total} onClick={() => setParams({ q, status, page: String(page + 1) })}>下一页</Button></nav></>}
   </main>
 }
 

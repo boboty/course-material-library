@@ -12,6 +12,7 @@
 - Task 7: PASS
 - Task 8: PASS
 - Task 9: PASS
+- Task 10: PASS
 - Paseo Experiment 001: PASS（独立 Verifier 已验收；已由用户提交为 `794bcda`，未 push）
 - 工程规范迁移 v1.1.0 → v1.2.0：PASS（非产品 Task）
 
@@ -26,7 +27,9 @@
 - Task 9 accepted baseline: e4c67874a979ebfea28bb6031c8ae2e6f49814d4
 - Paseo Experiment 001 在 v1.1.0 规则下验收，后由用户以 `794bcda` 提交；该提交不追溯为 accepted baseline，Task 9 基线记录不变
 - 工程规范迁移 v1.2.0 accepted baseline：Independent Verifier PASS 后创建的最终 commit `docs: migrate to BenYan Engineering Standard v1.2.0`（父提交 `794bcda`）
+- Task 10 accepted baseline：Independent Verifier PASS 后创建的最终任务 commit `feat: complete task 10 material status filter`（父提交 `58bef05`）
 - Migration head: 0003_usages（单一 head）
+- Task 10 独立验收时：临时本机 PostgreSQL 16 实例（测试库已迁移至 head）；`make check` 通过（ruff、pyright 0 errors、后端 137 passed、E2E 数据库门禁、前端 14 passed、build）、`make smoke` 通过、`make e2e` 20 passed（含 1280px / 375px 状态筛选流程）、`git diff --check` 通过；代码审查确认后端 `status` 为 Literal 五值且与 `MATERIAL_STATUSES` 一致，非法值（含空串、逗号多值）返回 422，状态与关键词共同作用于 total 与分页；前端切换状态与搜索回第一页、分页保留状态；无 schema / migration 变更。限制：未在 Docker Compose 环境复测；前端 URL 中非法 status 表现为列表加载失败提示，属可接受行为
 - Task 3 独立验收时：CI PASS、后端 115 passed、前端 3 passed、E2E 9 passed
 - Task 4 已通过独立复验
 - Task 5 已通过独立验收
@@ -61,6 +64,7 @@
 - Task 9 冻结：Demo 数据命令的误操作保护为“执行前展示目标数据库 + 显式确认”，不再限制数据库主机；确认词固定为 `yes`，其他输入、直接回车与 EOF 一律取消且不修改数据；取消以退出码 0 结束；目标展示只输出驱动、主机、端口、库名、用户，不输出密码；保留 `APP_ENV` 必须为 local / development 的判断；`demo-data` 与 `demo-clean` 共用同一保护路径；不提供跳过确认的开关，不新增环境判断、数据库命名规则或权限机制
 - Paseo Experiment 001 验证 Task 9 冻结规则的精确匹配边界；未新增或修改冻结判断
 - Task 8 冻结：素材状态 / 使用效果 / 使用状态的 Badge tone 映射统一在 `web/src/ui/statusBadge.ts`，所有页面复用，不新增颜色体系；课后登记保存区为 sticky 动作区，显示已用 / 未用摘要，不做离开拦截；本 Task 不新增任何业务语义、schema、migration 或 API 契约
+- Task 10 施工判断：素材列表的 `status` 为可选单值查询参数，值仅限现有五种素材状态；省略时查询全部，非法值按既有校验错误返回 422；关键词和状态条件共同作用于后端总数与分页。状态筛选不改变现有标题搜索范围。
 
 ## 当前已实现
 
@@ -76,10 +80,11 @@
 - Task 7 Demo 数据集：虚构素材、客户、课程、词表、多人群场次与使用记录；`make demo-data` 清空目标数据库全部业务数据后灌入固定数据，`make demo-clean` 清空全部业务数据；`APP_ENV=production` 被拒绝；不随应用启动自动灌入
 - Task 9 Demo 数据导入保护：`make demo-data` / `make demo-clean` 可指向任意主机的数据库；执行前打印目标数据库与清空提示并等待确认，仅 `yes` 执行，其他输入取消且数据零变化
 - Task 8 展示收口：页面 title / `html lang=zh-CN` / BenYan favicon；素材状态、使用效果、使用状态全站统一 Badge tone；场次详情“课后登记”为标题区主要操作、“选择计划素材”为次级操作；课后登记页 sticky 保存区与已用 / 未用摘要；卡片标题与 Badge 挤压修复；未知路由 404、列表与详情 loading、词表页错误返回入口修正；素材列表正文两行摘要
+- Task 10：素材列表可按单个状态筛选、切回全部状态，并与现有标题关键词搜索组合；状态及关键词提交后从第一页查询；状态保留在分页 URL 中；素材 Badge 沿用已有映射
 
 ## 当前尚未具备
 
-- 素材完整编辑与筛选、素材家族
+- 素材完整编辑与状态以外的筛选、素材家族
 - 同客户 / 同集团重复提醒、连续差评及系统复核提示
 - 素材与课程多对多关系、Markdown 批量导入
 - 课后登记完成状态字段（V1 不建设）
@@ -87,13 +92,8 @@
 
 ## 当前任务
 
-- **工程规范迁移：BenYan Engineering Standard v1.1.0 → v1.2.0 —— PASS**（非产品 Task，不编号为 Task 10，无 Task 文件）。
-- 交付范围：仅 `AGENTS.md`（版本号更新；角色改为 Developer / Independent Verifier；RC 由 Verifier 写入且不 commit；PASS、验收证据、限制和 accepted baseline 仅由 Verifier 写入并创建最终任务 commit；Developer 内部 reviewer 不构成独立验收；push / merge 须人工授权）。另含本次 Verifier 写入的 `PROGRESS.md` 验收状态。
-- 独立验收证据：逐条对照 v1.2.0 的 `standards/11-git-delivery.md`、`12-ai-collaboration.md`、`14-definition-of-done.md`、`checklists/independent-verification.md`、`templates/AGENTS.md`、`docs/new-project.md`，无冲突；在 `AGENTS.md`、`PROGRESS.md`、`README.md`、`docs/`、`tasks/`、`.github/` 中搜索 `v1.1.0`、`执行角色`、`独立验收角色` 无残留；`git diff --check` 通过；无未跟踪文件；app / web / tests / scripts / alembic / docs / tasks / README 未改动；`make check` 通过（ruff、pyright 0 errors、后端 135 passed、前端 14 passed、build）。
-- 限制：`make check` 使用 Verifier 临时建立的本地 PostgreSQL `benyan_test` 实例（先执行 Alembic 至 head），验证后已销毁；未运行 `make smoke` / `make e2e`（本次仅治理文档变更）。Migration / schema 未变，单一 head 仍为 `0003_usages`。
-- 已冻结规则变更：自本基线起，Task 状态与提交权限按 `AGENTS.md` v1.2.0 角色分工执行；既有 Task 1–9 及 Paseo Experiment 001 的验收记录不追溯改写。
-- 尚未实现：素材编辑、素材家族、标签 / 行业 / 人群筛选、使用历史统计、重复提醒、素材与课程关联、Markdown 导入等原有未完成范围。
+- 无进行中 Task。Task 10：素材列表增加状态筛选 —— PASS（独立验收）。
 
 ## 下一步
 
-- 规范迁移已通过独立验收并提交；等待后续任务指令。push 须人工授权。
+- 由用户确定下一个 Task；push 须人工授权。

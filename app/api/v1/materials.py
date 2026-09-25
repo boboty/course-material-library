@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -12,6 +12,8 @@ from app.schemas.material import MaterialCreate, MaterialPage, MaterialRead
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 
 router = APIRouter(prefix="/materials", tags=["materials"])
+
+MaterialStatusFilter = Literal["草稿", "可用", "主力", "待更新", "退役"]
 
 
 @router.post("", response_model=MaterialRead, status_code=201)
@@ -27,6 +29,7 @@ async def create_material(payload: MaterialCreate, session: DbSession) -> Materi
 async def list_materials(session: DbSession,
                          q: Annotated[str | None, Query(max_length=255)] = None,
                          title: Annotated[str | None, Query(max_length=255)] = None,
+                         status: Annotated[MaterialStatusFilter | None, Query()] = None,
                          page: Annotated[int, Query(ge=1)] = 1,
                          page_size: Annotated[int, Query(ge=1, le=100)] = 20) -> MaterialPage:
     where = []
@@ -34,6 +37,8 @@ async def list_materials(session: DbSession,
         where.append(Material.title.ilike(f"%{q.strip()}%"))
     if title is not None:
         where.append(Material.title == title)
+    if status is not None:
+        where.append(Material.status == status)
     total = await session.scalar(select(func.count()).select_from(Material).where(*where))
     rows = await session.scalars(select(Material).where(*where)
                                  .order_by(Material.created_at.desc(), Material.id.desc())
