@@ -20,7 +20,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## READY
 
-- Task 19 — 修复 Demo 清理对素材课程关联的兼容性
+- 无
 
 ## BLOCKED
 
@@ -28,6 +28,7 @@ Orchestrator 按本文件顺序推进 READY Task。
 
 ## DONE
 
+- Task 19
 - Task 18
 - Task 17
 - Task 16
