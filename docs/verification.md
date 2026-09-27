@@ -1,5 +1,24 @@
 # 验证
 
+## Task 验收流程
+
+Task Card 定义验收标准，`TASK_BOARD.md` 管理当前状态、依赖、推进策略、当前有效角色和最终验收结果；Workspace/Git 保存可审阅交付，Agent activity 保存执行过程，Independent Verifier 提供对应交付版本的完成证据。当前状态不从 `PROGRESS.md` 推断；该文件仅为历史记录。
+
+正式验收前，Orchestrator 确认 Developer 已自检、没有其他可能写入者、交付稳定后再启动独立 Verifier。验收期间交付只读，验收前后确认内容未变化。RC 时由 Orchestrator 将工作交回当前有效 Developer，修复后启动新的 Verifier 会话；PASS 或 BLOCKED 的结论及证据由 Orchestrator 更新到 Task Board。具体角色、failover、中断与稳定交付规则见 `AGENTS.md`。
+
+Developer 应按 Task Card 运行适用检查，并报告原始结果和限制；独立验收不以测试全绿自动替代审阅。项目级标准检查命令如下：
+
+```bash
+make check
+make smoke  # 涉及后端运行边界时
+make e2e    # 涉及页面或完整用户流程时
+git diff --check
+```
+
+Verifier 按 Task Card 逐项审阅完整 diff 和证据，判断测试路径是否覆盖真实业务链路，评估 mock、手工构造、同源假设、遗漏边界、错误、日志、敏感信息和范围外改动。未通过或跳过的检查须报告原因和影响。验收期间如发现交付变化，暂停验收并反馈 Orchestrator；变化后的交付稳定后必须启动新一轮验收。
+
+## 自动化验证命令
+
 运行 `make check` 做 ruff、pyright、pytest 与 web lint/typecheck/Vitest/build 代码级门禁；运行 `make smoke` 实际启动 Uvicorn，验证 `/api/v1/health` 的 200 与 `/api/v1/not-found` 的 404、JSON 和 X-Request-ID；运行 `make e2e` 用 Playwright 经过 Vite 代理调用真实后端。
 
 `make e2e` 自行准备数据库：`scripts/e2e_db.sh` 会创建（若不存在）专用数据库 `benyan_e2e` 并执行 `alembic upgrade head`，随后以该数据库启动后端。E2E 不依赖任何未写明的手工 migration 步骤，也不连接真实业务数据库。
