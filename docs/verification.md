@@ -2,9 +2,9 @@
 
 ## Task 验收流程
 
-Task Card 定义验收标准，`TASK_BOARD.md` 管理当前状态、依赖、推进策略、当前有效角色和最终验收结果；Workspace/Git 保存可审阅交付，Agent activity 保存执行过程，Independent Verifier 提供对应交付版本的完成证据。当前状态不从 `PROGRESS.md` 推断；该文件仅为历史记录。
+Task Card 定义验收标准，`TASK_BOARD.md` 只管理跨会话仍有调度价值的阶段状态、依赖、推进策略、阻塞/决策点和最终验收结果；Workspace/Git 保存可审阅交付，Agent activity 保存执行过程，Independent Verifier 提供对应交付版本的完成证据。当前状态不从 `PROGRESS.md` 推断；该文件仅为历史记录。
 
-正式验收前，Orchestrator 确认 Developer 已自检、没有其他可能写入者、交付稳定后再启动独立 Verifier。验收期间交付只读，验收前后确认内容未变化。RC 时由 Orchestrator 将工作交回当前有效 Developer，修复后启动新的 Verifier 会话；PASS 或 BLOCKED 的结论及证据由 Orchestrator 更新到 Task Board。具体角色、failover、中断与稳定交付规则见 `AGENTS.md`。
+正式验收前，Orchestrator 确认 Developer 已自检、没有其他可能写入者、交付稳定后再启动独立 Verifier。RC、复验轮次和临时执行状态由 Orchestrator 当前会话处理，通常不改变 Board 的 `IN PROGRESS` 阶段；只有跨会话阻塞、需要更高层裁决或最终 PASS 时才更新 Board。
 
 Developer 应按 Task Card 运行适用检查，并报告原始结果和限制；独立验收不以测试全绿自动替代审阅。项目级标准检查命令如下：
 
