@@ -15,7 +15,7 @@ docker compose up -d --build
 docker compose ps
 ```
 
-等待 `db` 和 `app` 都显示 healthy 后，打开 http://localhost:8000/。API 健康检查为 http://localhost:8000/api/v1/health。首次启动会在 PostgreSQL healthy 后执行本项目全部 Alembic migration；迁移成功后才启动 Web 服务。前端生产构建与 API 位于同一个 app 镜像，数据库存于 `postgres_data` volume。`docker compose down` 保留数据；`docker compose down -v` 会删除数据。
+等待 `db` 和 `app` 都显示 healthy 后，打开 http://localhost:8000/。API 健康检查为 http://localhost:8000/api/v1/health。项目数据库基线为 **PostgreSQL 16**；首次启动会在 PostgreSQL healthy 后执行本项目全部 Alembic migration；迁移成功后才启动 Web 服务。前端生产构建与 API 位于同一个 app 镜像，数据库存于 `postgres_data` volume。`docker compose down` 保留数据；`docker compose down -v` 会删除数据。
 
 可通过 `WEB_PORT` 改变 Web 端口，通过 `POSTGRES_PORT` 改变仅绑定本机的数据库端口。`POSTGRES_USER`、`POSTGRES_PASSWORD`、`POSTGRES_DB` 可在启动前配置；默认凭据只用于本机开发。已有 volume 创建后，修改环境变量不会自动更新库内凭据。真实业务数据进入网络部署环境前，必须先完成最小单用户认证与数据保护要求。
 
