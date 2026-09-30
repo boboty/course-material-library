@@ -1,6 +1,6 @@
 # 项目规则
 
-本项目继承 BenYan Engineering Standard v1.3.4、Fast Track 和共享 Web 前端规范。通用工程规则不在本文件重复。项目级协作、状态、交付与验收约定见本文件、`TASK_BOARD.md` 和当前 Task Card。
+本项目继承 BenYan Engineering Standard v1.3.5、Fast Track 和共享 Web 前端规范。通用工程规则不在本文件重复。项目级协作、状态、交付与验收约定见本文件、`TASK_BOARD.md` 和当前 Task Card。
 
 V1 产品定义以 `docs/product-v1.md` 为唯一产品依据。不得根据页面便利、技术习惯或模型判断自行改变产品语义；如需改变，先修改产品定义并经过确认，不在代码中静默决定。
 
@@ -79,9 +79,9 @@ Developer 完成自检并声明交付候验后，Orchestrator 确认没有其他
 
 Verifier 按 Task Card 逐项检查完整 diff、相关代码 / 文档、真实业务链路、测试路径、边界和错误，评估 mock、手工构造或同源假设是否绕过核心风险，并检查日志、敏感信息及范围外改动。按 Task 要求独立运行适用验证。报告实际命令及原始结果、交付版本、未通过或跳过项、验证限制和影响；不以测试全绿替代判断。
 
-RC 由 Orchestrator 在当前调度会话中交回当前有效 Developer；修复完成后启动新的 Independent Verifier。RC 默认不改变 Board 的 `IN PROGRESS` 状态。PASS 后由 Orchestrator 将 Task 置为 `DONE` 并记录最小可追溯证据。
+RC 由 Orchestrator 在当前调度会话中交回当前有效 Developer；修复完成后启动新的 Independent Verifier。RC 默认不改变 Board 的 `IN PROGRESS` 状态。正常本地任务中，RC 修复保持未提交，不创建正式 implementation commit。
 
-本项目不要求特定角色创建最终任务 commit。是否 commit 遵循项目 Git 交付规则；push、merge 默认须人工授权，除非用户明确授权。
+Independent Verifier PASS 后交付内容冻结；当前有效 Developer 才把刚刚通过验收的稳定 Workspace 一次性提交为该 Task 的最终 implementation commit。Orchestrator 核对提交与 PASS 时的交付一致、Workspace 重新干净后，将 Task 置为 `DONE` 并记录 accepted commit/baseline 与最小可追溯证据。只有真实存在跨会话、跨机器或长时间中断恢复风险时才允许 checkpoint commit；checkpoint 不是 accepted implementation commit。push、merge 默认须人工授权，除非用户明确授权。
 
 ## 完成检查
 
