@@ -1,6 +1,6 @@
 # 项目规则
 
-本项目继承 BenYan Engineering Standard v1.3.2、Fast Track 和共享 Web 前端规范。通用工程规则不在本文件重复。项目级协作、状态、交付与验收约定见本文件、`TASK_BOARD.md` 和当前 Task Card。
+本项目继承 BenYan Engineering Standard v1.3.4、Fast Track 和共享 Web 前端规范。通用工程规则不在本文件重复。项目级协作、状态、交付与验收约定见本文件、`TASK_BOARD.md` 和当前 Task Card。
 
 V1 产品定义以 `docs/product-v1.md` 为唯一产品依据。不得根据页面便利、技术习惯或模型判断自行改变产品语义；如需改变，先修改产品定义并经过确认，不在代码中静默决定。
 
@@ -34,6 +34,18 @@ Task Card 定义工作；`TASK_BOARD.md` 是跨会话、跨角色的阶段性调
 - **Independent Verifier**：与 Developer 保持独立判断；人员执行时应为不同人员，使用 AI 时至少使用独立会话和独立上下文。Verifier 对交付内容只读，不得修改代码、测试、Task Card、Task Board 或普通项目文档，也不得实施修复或创建任务 commit。Verifier 对照 Task Card 审阅完整 diff、相关代码和证据，按真实业务链路检查并在需要时独立验证；将结论、证据和限制反馈给 Orchestrator。
 
 Developer 的内部 reviewer、self-review 或其他开发阶段检查不构成正式独立验收。只有 Independent Verifier 的证据结论能支持 PASS；测试全绿或口头声明本身不等于完成。
+
+## 执行平台与调度后端
+
+本项目不绑定 Paseo、Orca 或其他具体调度产品。execution backend 属于当前 Run 的运行时上下文，不属于项目协议状态。
+
+- Orchestrator 只使用当前 Run / 主控明确指定的 execution backend；不得根据历史示例、旧会话或过去使用过的平台推断默认值。
+- 当前指定 Orca 时，只使用 Orca 的 orchestration / worker / controlled terminal 能力，不搜索、启动或调用 Paseo。
+- 当前指定 Paseo 时，只使用 Paseo 的 Agent Profile / delegation 能力，不搜索、启动或调用 Orca，除非主控明确切换。
+- 若 execution backend 未明确，Orchestrator 应暂停在调度准备状态并请求主控指定，不自行探测多个平台。
+- 平台、Harness、model、effort、auto/non-interactive mode 都是可替换运行时资源；Task、Board、Gate、single-writer、RC 和 Independent Verification 语义不因平台切换而改变。
+
+> **协议定义流程，执行平台只是可替换的适配层。**
 
 ## Task Board 与调度粒度
 
