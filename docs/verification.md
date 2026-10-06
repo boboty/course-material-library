@@ -1,12 +1,10 @@
 # 验证
 
-## Task 验收流程
+## 项目验证边界
 
-Task Card 定义验收标准，`TASK_BOARD.md` 只管理跨会话仍有调度价值的阶段状态、依赖、推进策略、阻塞/决策点和最终验收结果；Workspace/Git 保存可审阅交付，Agent activity 保存执行过程，Independent Verifier 提供对应交付版本的完成证据。当前状态不从 `PROGRESS.md` 推断；该文件仅为历史记录。
+AI 研发中的角色、交付、独立验收、RC、PASS、fingerprint 和收口流程统一遵循已安装的 `agent-board-workflow`，本文件不再复制该协议。这里仅定义课程素材库自己的工程验证命令和安全边界。
 
-正式验收前，Orchestrator 确认 Developer 已自检、没有其他可能写入者、交付稳定后再启动独立 Verifier。RC、复验轮次和临时执行状态由 Orchestrator 当前会话处理，通常不改变 Board 的 `IN PROGRESS` 阶段；只有跨会话阻塞、需要更高层裁决或最终 PASS 时才更新 Board。
-
-Developer 应按 Task Card 运行适用检查，并报告原始结果和限制；独立验收不以测试全绿自动替代审阅。项目级标准检查命令如下：
+项目标准检查命令：
 
 ```bash
 make check
@@ -15,7 +13,7 @@ make e2e    # 涉及页面或完整用户流程时
 git diff --check
 ```
 
-Verifier 按 Task Card 逐项审阅完整 diff 和证据，判断测试路径是否覆盖真实业务链路，评估 mock、手工构造、同源假设、遗漏边界、错误、日志、敏感信息和范围外改动。未通过或跳过的检查须报告原因和影响。验收期间如发现交付变化，暂停验收并反馈 Orchestrator；变化后的交付稳定后必须启动新一轮验收。
+验证应对应实际改动范围和风险，保留原始结果。未运行、失败或跳过的检查必须说明原因和影响；适用时核对真实 API、浏览器、数据库、migration、错误路径、日志、敏感信息和范围外 diff。
 
 ## 自动化验证命令
 
@@ -31,4 +29,4 @@ CI 还构建 Docker 镜像并在容器内运行 `alembic --help`。生产容器�
 
 测试依赖警告：原先 `httpx` 路径触发 Starlette 的 TestClient 弃用警告；按 Starlette 官方建议改用 `httpx2` 后该警告消失。当前仍有一条来自已安装 Starlette 1.6.0 的 `starlette/testclient.py` 类型别名：它引用已弃用的 `anyio.abc.BlockingPortal`。这是上游代码的导入时警告，后续升级 Starlette 时复查；不屏蔽警告或锁旧版本。
 
-独立验收应复查原始命令结果及错误边界；以每次实际运行结果为准。
+以每次实际运行结果为准；本文件不替代 Agent Board Workflow 的独立验收规则。

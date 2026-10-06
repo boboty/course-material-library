@@ -2,9 +2,11 @@
 
 面向授课工作的 V1 素材库，覆盖素材录入、客户与课程维护、场次备课和课后登记。产品边界见 `docs/product-v1.md`，当前任务阶段见 [`TASK_BOARD.md`](TASK_BOARD.md)，任务范围见对应的 [`tasks/`](tasks/) Task Card。
 
-## Task 与验收流程
+## 研发流程与历史记录
 
-Task Card 定义目标、范围和验收标准；`TASK_BOARD.md` 是由 Orchestrator 维护的阶段性 progress 视图，只持久化跨会话仍有调度价值的信息；Workspace/Git 保存成果；Agent activity 留存执行过程；Independent Verifier 提供关联到具体交付的验收证据。开始前读取 `AGENTS.md`、Task Board、当前 Task Card 及其引用文档。`PROGRESS.md` 是历史记录，不用于当前状态管理。角色边界、中断接续、交付稳定和独立验收要求见 [`AGENTS.md`](AGENTS.md)。
+本项目的软件工程要求继承 BenYan Engineering Standard v2.0.0；AI 研发任务统一使用 `agent-board-workflow` 与 Agent Board（`aboard`），仓库内不再复制角色、状态和独立验收协议。
+
+`TASK_BOARD.md`、`PROGRESS.md`、`RUN_LOG.md` 与 `tasks/` 保留为 V1 历史研发记录，不作为当前任务控制面。产品边界仍以 `docs/product-v1.md` 为准，项目级工程与数据约束见 `AGENTS.md`。
 
 ## 默认启动
 

@@ -1,5 +1,7 @@
 # Task Board
 
+> **历史归档**：本文件保留 V1 时期的本地 Task Board 状态与 accepted baseline，仅用于追溯。自本次规范清理起，后续 AI 研发任务以 Agent Board（`aboard`）为唯一控制面；本文件中的状态、推进策略和角色记录均不再用于当前调度。
+
 本文件由 Orchestrator 维护，是项目跨会话的阶段性 progress 视图。Task Card 定义工作，Workspace/Git 保存成果，Agent activity 保存执行过程，Independent Verifier 提供完成证据。
 
 Board 只持久化后续调度真正需要的信息，不记录 Developer / Verifier 切换、RC 轮次、临时错误或其他可由当前 Orchestrator 会话可靠维护的执行细节。

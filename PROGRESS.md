@@ -1,5 +1,7 @@
 # Project Progress
 
+> **历史归档**：本文件保留 V1 研发过程与旧验收记录，不再维护，也不作为当前任务状态源。后续 AI 研发任务使用 Agent Board（`aboard`）。
+
 ## 当前阶段
 
 - V1
